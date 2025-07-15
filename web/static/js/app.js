@@ -279,6 +279,14 @@ class DDDApp {
                                                 onclick="app.viewReport(${report.id})" title="View Report">
                                             <i class="material-icons">visibility</i>
                                         </button>
+                                        <button class="mdl-button mdl-js-button mdl-button--icon"
+                                                onclick="app.copyReportLink(${report.id})" title="Copy Report Link">
+                                            <i class="material-icons">link</i>
+                                        </button>
+                                        <a href="/report/${report.id}" target="_blank"
+                                           class="mdl-button mdl-js-button mdl-button--icon" title="Open Report in New Tab">
+                                            <i class="material-icons">open_in_new</i>
+                                        </a>
                                     ` : ''}
                                     <button class="mdl-button mdl-js-button mdl-button--icon"
                                             onclick="app.deleteReport(${report.id})" title="Delete Report">
@@ -338,6 +346,72 @@ class DDDApp {
             viewerHeader.textContent = 'Error Loading Report';
             viewerContent.innerHTML = `<div class="error-message">Failed to load report: ${error.message}</div>`;
         }
+    }
+
+    copyReportLink(reportId) {
+        const reportUrl = `${window.location.origin}/report/${reportId}`;
+
+        // Try to use the modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(reportUrl).then(() => {
+                this.showToast('Report link copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy link:', err);
+                this.fallbackCopyTextToClipboard(reportUrl);
+            });
+        } else {
+            // Fallback for older browsers
+            this.fallbackCopyTextToClipboard(reportUrl);
+        }
+    }
+
+    fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showToast('Report link copied to clipboard!');
+        } catch (err) {
+            console.error('Fallback: Could not copy text:', err);
+            this.showToast('Failed to copy link. Please copy manually: ' + text);
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    showToast(message) {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        `;
+
+        document.body.appendChild(toast);
+
+        // Remove toast after 3 seconds
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
+            }
+        }, 3000);
     }
 
     async deleteReport(reportId) {

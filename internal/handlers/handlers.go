@@ -43,6 +43,40 @@ func (h *Handlers) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./web/index.html")
 }
 
+// HandleReportPage serves the report viewer page
+func (h *Handlers) HandleReportPage(w http.ResponseWriter, r *http.Request) {
+	// Extract report ID from URL path
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 2 {
+		http.NotFound(w, r)
+		return
+	}
+
+	reportIDStr := pathParts[1]
+	reportID, err := strconv.Atoi(reportIDStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Verify report exists
+	report, err := h.db.GetReportByID(reportID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Get file information
+	file, err := h.getFileByID(report.FileID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Serve the report page with metadata
+	h.serveReportPage(w, report, file)
+}
+
 // HandleUpload handles file uploads
 func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -338,6 +372,145 @@ func (h *Handlers) HandleReportContent(w http.ResponseWriter, r *http.Request) {
 		"success":     true,
 		"report_data": report.ReportData,
 	})
+}
+
+// getFileByID retrieves a file by ID
+func (h *Handlers) getFileByID(fileID int) (*database.File, error) {
+	query := `
+		SELECT id, hash, original_name, file_type, file_size, upload_time, file_path, deleted, deleted_time
+		FROM files WHERE id = ?
+	`
+	row := h.db.QueryRow(query, fileID)
+
+	file := &database.File{}
+	err := row.Scan(&file.ID, &file.Hash, &file.OriginalName, &file.FileType,
+		&file.FileSize, &file.UploadTime, &file.FilePath, &file.Deleted, &file.DeletedTime)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// serveReportPage serves the report viewer HTML page
+func (h *Handlers) serveReportPage(w http.ResponseWriter, report *database.Report, file *database.File) {
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDD Report: ` + report.ReportType + ` - ` + file.OriginalName + `</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="/static/css/material.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .report-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .report-header {
+            background: white;
+            padding: 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .report-content-page {
+            background: white;
+            padding: 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 400px;
+        }
+        .back-link {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-page">
+        <div class="back-link">
+            <a href="/" class="mdl-button mdl-js-button mdl-button--icon">
+                <i class="material-icons">arrow_back</i>
+            </a>
+            <a href="/" class="mdl-button mdl-js-button">Back to Files</a>
+        </div>
+
+        <div class="report-header">
+            <h1>` + report.ReportType + ` Report</h1>
+            <p><strong>File:</strong> ` + file.OriginalName + `</p>
+            <p><strong>Status:</strong> <span class="status-badge status-` + report.Status + `">` + report.Status + `</span></p>
+            <p><strong>Created:</strong> ` + report.CreatedTime.Format("2006-01-02 15:04:05") + `</p>
+            <p><strong>DDD Version:</strong> ` + report.DDDVersion + `</p>
+            ` + func() string {
+		if report.CompletedTime != nil {
+			return `<p><strong>Completed:</strong> ` + report.CompletedTime.Format("2006-01-02 15:04:05") + `</p>`
+		}
+		return ""
+	}() + `
+            ` + func() string {
+		if report.ErrorMessage != "" {
+			return `<p><strong>Error:</strong> <span style="color: #d32f2f;">` + report.ErrorMessage + `</span></p>`
+		}
+		return ""
+	}() + `
+        </div>
+
+        <div class="report-content-page" id="report-content">
+            ` + func() string {
+		if report.Status == "completed" {
+			return `<div class="loading">Loading report content...</div>`
+		} else {
+			return `<div class="error-message">Report is not completed yet.</div>`
+		}
+	}() + `
+        </div>
+    </div>
+
+    <script src="/static/js/material.min.js"></script>
+    <script>
+        // Load report content if completed
+        if ('` + report.Status + `' === 'completed') {
+            fetch('/api/reports/content/` + strconv.Itoa(report.ID) + `')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('report-content').innerHTML = renderReportData(data.report_data);
+                    } else {
+                        document.getElementById('report-content').innerHTML = '<div class="error-message">Failed to load report content</div>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('report-content').innerHTML = '<div class="error-message">Error loading report: ' + error.message + '</div>';
+                });
+        }
+
+        function renderReportData(reportDataStr) {
+            try {
+                const reportData = JSON.parse(reportDataStr);
+                return '<div class="report-content">' +
+                    '<h4>Report Summary</h4>' +
+                    '<p>' + (reportData.summary || 'No summary available') + '</p>' +
+                    '<h4>Analysis</h4>' +
+                    '<p>' + (reportData.analysis || 'No analysis available') + '</p>' +
+                    '</div>';
+            } catch (error) {
+                return '<pre class="report-raw-data">' + escapeHtml(reportDataStr) + '</pre>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>`
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(html))
 }
 
 // shouldAutoGenerateReport determines if we should automatically generate a report for a file type

@@ -66,6 +66,9 @@ func main() {
 	mux.HandleFunc("/api/reports/", h.HandleReports)
 	mux.HandleFunc("/api/reports/content/", h.HandleReportContent)
 
+	// Report viewer page
+	mux.HandleFunc("/report/", h.HandleReportPage)
+
 	// Main page
 	mux.HandleFunc("/", h.HandleIndex)
 
