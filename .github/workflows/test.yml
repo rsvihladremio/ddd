@@ -40,3 +40,6 @@ jobs:
 
     - name: Install linting tools and run linting
       run: make lint-install lint
+
+    - name: Run security checks
+      run: make security

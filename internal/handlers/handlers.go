@@ -146,6 +146,11 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Save file to disk
 	filePath := filepath.Join(h.cfg.UploadsDir, hash)
+	// Validate that the file path is within the uploads directory
+	if !strings.HasPrefix(filepath.Clean(filePath), filepath.Clean(h.cfg.UploadsDir)) {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		return
+	}
 	outFile, err := os.Create(filePath)
 	if err != nil {
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)

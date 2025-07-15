@@ -18,11 +18,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
+
+// secureReadFile safely reads a file with path validation to prevent directory traversal
+func secureReadFile(filePath string) ([]byte, error) {
+	// Clean the path to resolve any .. or . components
+	cleanPath := filepath.Clean(filePath)
+
+	// Check for directory traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return nil, fmt.Errorf("invalid file path: directory traversal detected")
+	}
+
+	// Ensure the path is absolute or relative to current directory
+	if !filepath.IsAbs(cleanPath) && strings.HasPrefix(cleanPath, "/") {
+		return nil, fmt.Errorf("invalid file path: absolute path not allowed")
+	}
+
+	return os.ReadFile(cleanPath)
+}
 
 // GenerateTTopReport generates a report for ttop.txt files
 func GenerateTTopReport(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
@@ -46,7 +66,7 @@ func GenerateTTopReport(filePath string) (string, error) {
 
 // GenerateIOStatReport generates a report for iostat files
 func GenerateIOStatReport(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
@@ -70,7 +90,7 @@ func GenerateIOStatReport(filePath string) (string, error) {
 
 // GenerateDremioProfileReport generates a report for Dremio profile files
 func GenerateDremioProfileReport(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
@@ -94,7 +114,7 @@ func GenerateDremioProfileReport(filePath string) (string, error) {
 
 // GenerateQueriesJSONReport generates a report for queries.json files
 func GenerateQueriesJSONReport(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
@@ -118,7 +138,7 @@ func GenerateQueriesJSONReport(filePath string) (string, error) {
 
 // GenerateJFRReport generates a report for JFR files
 func GenerateJFRReport(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}

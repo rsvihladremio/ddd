@@ -29,6 +29,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// secureReadFile safely reads a file with path validation for testing
+func secureReadFile(filePath string) ([]byte, error) {
+	// Clean the path to resolve any .. or . components
+	cleanPath := filepath.Clean(filePath)
+
+	// Check for directory traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return nil, fmt.Errorf("invalid file path: directory traversal detected")
+	}
+
+	return os.ReadFile(cleanPath)
+}
+
 // TestConfig creates a test configuration with temporary directories
 func TestConfig(t *testing.T) *config.Config {
 	t.Helper()
@@ -37,7 +50,7 @@ func TestConfig(t *testing.T) *config.Config {
 	uploadsDir := filepath.Join(tempDir, "uploads")
 	dbPath := filepath.Join(tempDir, "test.db")
 
-	err := os.MkdirAll(uploadsDir, 0755)
+	err := os.MkdirAll(uploadsDir, 0750)
 	require.NoError(t, err)
 
 	return &config.Config{
@@ -65,7 +78,7 @@ func CreateTestFile(t *testing.T, uploadsDir string, testFile TestFile) (string,
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
 	filePath := filepath.Join(uploadsDir, hash)
-	err := os.WriteFile(filePath, testFile.Content, 0644)
+	err := os.WriteFile(filePath, testFile.Content, 0600)
 	require.NoError(t, err)
 
 	return hash, filePath
@@ -149,7 +162,7 @@ func CreateTempFile(t *testing.T, content []byte, filename string) string {
 	tempDir := t.TempDir()
 	filePath := filepath.Join(tempDir, filename)
 
-	err := os.WriteFile(filePath, content, 0644)
+	err := os.WriteFile(filePath, content, 0600)
 	require.NoError(t, err)
 
 	return filePath
@@ -159,7 +172,7 @@ func CreateTempFile(t *testing.T, content []byte, filename string) string {
 func ReadFileContent(t *testing.T, filePath string) []byte {
 	t.Helper()
 
-	content, err := os.ReadFile(filePath)
+	content, err := secureReadFile(filePath)
 	require.NoError(t, err)
 
 	return content

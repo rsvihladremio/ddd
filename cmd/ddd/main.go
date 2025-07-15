@@ -19,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rsvihladremio/ddd/internal/config"
 	"github.com/rsvihladremio/ddd/internal/database"
@@ -46,7 +47,7 @@ func main() {
 	}
 
 	// Create uploads directory if it doesn't exist
-	if err := os.MkdirAll(cfg.UploadsDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.UploadsDir, 0750); err != nil {
 		log.Fatalf("Failed to create uploads directory: %v", err)
 	}
 
@@ -96,7 +97,16 @@ func main() {
 	log.Printf("Max disk usage: %.1f%%", cfg.MaxDiskUsage*100)
 	log.Printf("File retention: %d days", cfg.FileRetentionDays)
 
-	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
+	// Create HTTP server with timeouts for security
+	server := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

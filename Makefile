@@ -14,7 +14,7 @@
 
 # DDD Testing Makefile
 
-.PHONY: test test-unit test-integration test-e2e test-all test-coverage clean build help
+.PHONY: test test-unit test-integration test-e2e test-all test-coverage clean build help security lint fmt
 
 # Default target
 help: ## Show this help message
