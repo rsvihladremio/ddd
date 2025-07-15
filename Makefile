@@ -96,13 +96,14 @@ lint: ## Run linting tools
 	golangci-lint run
 
 # Lint with auto-install
-lint-install: ## Install golangci-lint and run linting
-	@echo "Installing golangci-lint and running linting..."
+lint-install: ## Install golangci-lint
+	@echo "Installing golangci-lint..."
 	@if ! command -v golangci-lint >/dev/null 2>&1; then \
 		echo "Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	else \
+		echo "golangci-lint already installed"; \
 	fi
-	golangci-lint run
 
 # Check copyright headers
 check-headers: ## Check that all Go files have the required copyright header
