@@ -1,3 +1,17 @@
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package reporters
 
 import (
@@ -15,10 +29,10 @@ func GenerateTTopReport(filePath string) (string, error) {
 
 	// Parse ttop content and generate report
 	report := map[string]interface{}{
-		"type":        "ttop",
-		"file_size":   len(content),
-		"summary":     "TTop analysis report",
-		"analysis":    "Basic ttop file analysis - implementation pending",
+		"type":         "ttop",
+		"file_size":    len(content),
+		"summary":      "TTop analysis report",
+		"analysis":     "Basic ttop file analysis - implementation pending",
 		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
 	}
 
@@ -39,10 +53,10 @@ func GenerateIOStatReport(filePath string) (string, error) {
 
 	// Parse iostat content and generate report
 	report := map[string]interface{}{
-		"type":        "iostat",
-		"file_size":   len(content),
-		"summary":     "IOStat analysis report",
-		"analysis":    "Basic iostat file analysis - implementation pending",
+		"type":         "iostat",
+		"file_size":    len(content),
+		"summary":      "IOStat analysis report",
+		"analysis":     "Basic iostat file analysis - implementation pending",
 		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
 	}
 
@@ -63,10 +77,10 @@ func GenerateDremioProfileReport(filePath string) (string, error) {
 
 	// Parse Dremio profile content and generate report
 	report := map[string]interface{}{
-		"type":        "dremio_profile",
-		"file_size":   len(content),
-		"summary":     "Dremio Profile analysis report",
-		"analysis":    "Basic Dremio profile analysis - implementation pending",
+		"type":         "dremio_profile",
+		"file_size":    len(content),
+		"summary":      "Dremio Profile analysis report",
+		"analysis":     "Basic Dremio profile analysis - implementation pending",
 		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
 	}
 
@@ -87,10 +101,10 @@ func GenerateQueriesJSONReport(filePath string) (string, error) {
 
 	// Parse queries.json content and generate report
 	report := map[string]interface{}{
-		"type":        "queries_json",
-		"file_size":   len(content),
-		"summary":     "Queries JSON analysis report",
-		"analysis":    "Basic queries.json analysis - implementation pending",
+		"type":         "queries_json",
+		"file_size":    len(content),
+		"summary":      "Queries JSON analysis report",
+		"analysis":     "Basic queries.json analysis - implementation pending",
 		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
 	}
 
@@ -111,10 +125,10 @@ func GenerateJFRReport(filePath string) (string, error) {
 
 	// Parse JFR content and generate report
 	report := map[string]interface{}{
-		"type":        "jfr",
-		"file_size":   len(content),
-		"summary":     "JFR analysis report",
-		"analysis":    "Basic JFR file analysis - implementation pending",
+		"type":         "jfr",
+		"file_size":    len(content),
+		"summary":      "JFR analysis report",
+		"analysis":     "Basic JFR file analysis - implementation pending",
 		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
 	}
 

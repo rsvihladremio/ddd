@@ -1,3 +1,17 @@
+# Copyright 2023 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # DDD Testing Makefile
 
 .PHONY: test test-unit test-integration test-e2e test-all test-coverage clean build help
@@ -89,6 +103,38 @@ lint-install: ## Install golangci-lint and run linting
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	fi
 	golangci-lint run
+
+# Check copyright headers
+check-headers: ## Check that all Go files have the required copyright header
+	@echo "Checking copyright headers..."
+	@missing_headers=0; \
+	for file in $$(find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*"); do \
+		if ! head -n 1 "$$file" | grep -q "Copyright 2023 Dremio Corporation"; then \
+			echo "Missing copyright header in: $$file"; \
+			missing_headers=$$((missing_headers + 1)); \
+		fi; \
+	done; \
+	if [ $$missing_headers -gt 0 ]; then \
+		echo "Found $$missing_headers files missing copyright headers"; \
+		exit 1; \
+	else \
+		echo "All Go files have copyright headers ✓"; \
+	fi
+
+# Add copyright headers to all Go files
+add-headers: ## Add copyright headers to all Go files that are missing them
+	@echo "Adding copyright headers to Go files..."
+	@header='//\tCopyright 2023 Dremio Corporation\n//\n// Licensed under the Apache License, Version 2.0 (the "License");\n// you may not use this file except in compliance with the License.\n// You may obtain a copy of the License at\n//\n//\thttp://www.apache.org/licenses/LICENSE-2.0\n//\n// Unless required by applicable law or agreed to in writing, software\n// distributed under the License is distributed on an "AS IS" BASIS,\n// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n// See the License for the specific language governing permissions and\n// limitations under the License.\n'; \
+	for file in $$(find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*"); do \
+		if ! head -n 1 "$$file" | grep -q "Copyright 2023 Dremio Corporation"; then \
+			echo "Adding header to: $$file"; \
+			temp_file=$$(mktemp); \
+			printf "$$header\n" > "$$temp_file"; \
+			cat "$$file" >> "$$temp_file"; \
+			mv "$$temp_file" "$$file"; \
+		fi; \
+	done; \
+	echo "Copyright headers added ✓"
 
 # Format the code
 fmt: ## Format Go code

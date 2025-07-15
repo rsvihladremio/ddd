@@ -34,3 +34,5 @@ go.work.sum
 ddd.db
 uploads/
 /ddd
+/ddd-test
+/bin
