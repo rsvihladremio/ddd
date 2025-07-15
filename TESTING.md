@@ -249,9 +249,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.24.5'
     - run: make install-test-deps
     - run: make test-ci
     - run: make test-coverage
