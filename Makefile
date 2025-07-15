@@ -34,7 +34,6 @@ clean: ## Clean build artifacts and test data
 	rm -rf e2e/screenshots/
 	rm -rf coverage/
 	rm -f coverage.out
-	rm -f ddd-test
 
 # Run all tests
 test-all: test-unit test-integration test-e2e ## Run all tests (unit, integration, and e2e)

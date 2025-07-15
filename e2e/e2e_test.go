@@ -94,11 +94,15 @@ func cleanupE2EEnvironment() {
 }
 
 func startTestServer() error {
-	// Build the server binary
-	buildCmd := exec.Command("go", "build", "-o", "ddd-test", "./cmd/ddd")
-	buildCmd.Dir = ".."
-	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("failed to build server: %w", err)
+	// Check if bin/ddd exists, if not build it
+	binPath := "../bin/ddd"
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		// Build the server binary
+		buildCmd := exec.Command("go", "build", "-o", "bin/ddd", "./cmd/ddd")
+		buildCmd.Dir = ".."
+		if err := buildCmd.Run(); err != nil {
+			return fmt.Errorf("failed to build server: %w", err)
+		}
 	}
 
 	// Create test database and uploads directory
@@ -111,7 +115,7 @@ func startTestServer() error {
 	}
 
 	// Start the server
-	serverCmd = exec.Command("../ddd-test",
+	serverCmd = exec.Command("./bin/ddd",
 		"-port", testServerPort,
 		"-db", filepath.Join(testDir, "test.db"),
 		"-uploads", filepath.Join(testDir, "uploads"),
