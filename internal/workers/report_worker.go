@@ -45,11 +45,8 @@ func (w *ReportWorker) Start() {
 	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			w.processReports()
-		}
+	for range ticker.C {
+		w.processReports()
 	}
 }
 

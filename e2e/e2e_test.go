@@ -126,7 +126,7 @@ func startTestServer() error {
 }
 
 func waitForServer() error {
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		resp, err := http.Get(testServerURL)
 		if err == nil {
 			if err := resp.Body.Close(); err != nil {
@@ -164,7 +164,7 @@ func TestE2E_FileUploadWorkflow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Wait for page to load
-		_, err = page.WaitForSelector("body", playwright.PageWaitForSelectorOptions{
+		err = page.Locator("body").WaitFor(playwright.LocatorWaitForOptions{
 			Timeout: playwright.Float(5000),
 		})
 		require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestE2E_FileUploadWorkflow(t *testing.T) {
 		// Wait for upload to complete and check for success message
 		// Note: This might fail if the UI doesn't have these classes, which is expected
 		// In a real implementation, you'd adjust selectors based on actual UI
-		if _, err = page.WaitForSelector(".success, .upload-success", playwright.PageWaitForSelectorOptions{
+		if err = page.Locator(".success, .upload-success").WaitFor(playwright.LocatorWaitForOptions{
 			Timeout: playwright.Float(10000),
 		}); err != nil {
 			t.Logf("Upload success selector not found (expected in test): %v", err)
@@ -209,7 +209,7 @@ func TestE2E_FileUploadWorkflow(t *testing.T) {
 
 		// Look for files list or table
 		// This might fail if the UI structure is different
-		if _, err = page.WaitForSelector(".files-list, table, .file-item", playwright.PageWaitForSelectorOptions{
+		if err = page.Locator(".files-list, table, .file-item").WaitFor(playwright.LocatorWaitForOptions{
 			Timeout: playwright.Float(5000),
 		}); err != nil {
 			t.Logf("Files list selector not found (expected in test): %v", err)
@@ -258,7 +258,7 @@ func TestE2E_ReportGeneration(t *testing.T) {
 		// Wait for report generation (this might take some time)
 		// Look for report links or buttons
 		// This test structure assumes the UI has report viewing capabilities
-		if _, err = page.WaitForSelector(".report-link, .view-report", playwright.PageWaitForSelectorOptions{
+		if err = page.Locator(".report-link, .view-report").WaitFor(playwright.LocatorWaitForOptions{
 			Timeout: playwright.Float(30000), // Reports might take time to generate
 		}); err != nil {
 			t.Logf("Report selector not found (expected in test): %v", err)
@@ -304,7 +304,7 @@ func TestE2E_ResponsiveDesign(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check that page loads and basic elements are visible
-			_, err = page.WaitForSelector("body", playwright.PageWaitForSelectorOptions{
+			err = page.Locator("body").WaitFor(playwright.LocatorWaitForOptions{
 				Timeout: playwright.Float(5000),
 			})
 			require.NoError(t, err)
@@ -486,7 +486,7 @@ func TestE2E_CrossBrowser(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check that page loads
-			_, err = page.WaitForSelector("body", playwright.PageWaitForSelectorOptions{
+			err = page.Locator("body").WaitFor(playwright.LocatorWaitForOptions{
 				Timeout: playwright.Float(5000),
 			})
 			require.NoError(t, err)

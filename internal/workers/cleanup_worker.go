@@ -45,11 +45,8 @@ func (w *CleanupWorker) Start() {
 	ticker := time.NewTicker(1 * time.Hour) // Check every hour
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			w.performCleanup()
-		}
+	for range ticker.C {
+		w.performCleanup()
 	}
 }
 
@@ -133,6 +130,8 @@ func (w *CleanupWorker) getDiskUsage() (float64, error) {
 func (w *CleanupWorker) getFilesForCleanup(cutoffTime time.Time, forceCleanup bool) ([]*database.File, error) {
 	// For now, both cases use the same logic - files older than cutoff time
 	// In the future, we could implement more sophisticated cleanup policies
+	// The forceCleanup parameter is reserved for future use
+	_ = forceCleanup // TODO: implement force cleanup logic
 	return w.db.GetFilesOlderThan(cutoffTime)
 }
 
