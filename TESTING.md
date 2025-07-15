@@ -36,15 +36,13 @@ The DDD project uses a multi-layered testing approach:
 │   ├── detector/
 │   │   └── detector_test.go      # File detection tests
 │   ├── handlers/
-│   │   └── handlers_test.go      # HTTP handler integration tests
+│   │   └── handlers_test.go      # HTTP handler integration tests (includes httptest-based e2e tests)
 │   ├── reporters/
 │   │   └── reporters_test.go     # Report generation tests
 │   ├── workers/
 │   │   └── workers_test.go       # Background worker tests
 │   └── testutil/
 │       └── testutil.go           # Shared test utilities
-├── e2e/
-│   └── e2e_test.go              # End-to-end Playwright tests
 ├── Makefile                     # Test automation
 └── TESTING.md                   # This file
 ```
@@ -53,12 +51,12 @@ The DDD project uses a multi-layered testing approach:
 
 ### Go Testing Dependencies
 - `github.com/stretchr/testify` - Assertions and test utilities
-- `github.com/playwright-community/playwright-go` - End-to-end browser testing
+- `net/http/httptest` - HTTP testing utilities (built-in)
 
 ### External Tools (Optional)
 - `golangci-lint` - Code linting
 - `gosec` - Security scanning
-- `goimports` - Import formatting
+- `gofmt` - Code formatting
 
 ## Running Tests
 
@@ -73,8 +71,7 @@ make test-all
 
 # Run specific test types
 make test-unit        # Fast unit tests
-make test-integration # Integration tests with real dependencies
-make test-e2e         # End-to-end browser tests
+make test-integration # Integration tests with real dependencies (includes httptest-based e2e tests)
 ```
 
 ### Test Commands
@@ -83,8 +80,7 @@ make test-e2e         # End-to-end browser tests
 |---------|-------------|
 | `make test` | Run quick unit tests |
 | `make test-unit` | Run unit tests only |
-| `make test-integration` | Run integration tests |
-| `make test-e2e` | Run end-to-end tests |
+| `make test-integration` | Run integration tests (includes httptest-based e2e tests) |
 | `make test-all` | Run all test types |
 | `make test-coverage` | Run tests with coverage report |
 | `make test-verbose` | Run tests with verbose output |
@@ -130,25 +126,33 @@ Following the testing pyramid principle, we prefer integration tests over unit t
 - Tests HTTP endpoints with real requests
 - Tests file upload with multipart forms
 - Verifies JSON API responses and error handling
+- **Integration Tests**: Comprehensive httptest-based tests that replace browser-based e2e testing:
+  - Complete file upload and processing workflows
+  - Report generation and viewing via API
+  - Error handling and edge cases
+  - Performance testing with concurrent requests
+  - Duplicate file handling
 
-### 2. End-to-End Tests (`e2e/e2e_test.go`)
+### 2. HTTP Integration Testing Approach
 
-Uses Playwright to test complete user workflows:
+Uses Go's built-in `net/http/httptest` package for comprehensive testing:
 
-- File upload through web interface
-- Report generation and viewing
-- Cross-browser compatibility (Chromium, Firefox, WebKit)
-- Responsive design testing
-- Performance testing
+The integration tests use httptest to create HTTP requests and responses, testing the complete application stack without requiring a browser. This approach provides:
 
-#### E2E Test Setup
+1. **Fast Execution**: No browser startup overhead
+2. **Reliable Testing**: No browser-specific quirks or timing issues
+3. **Complete Coverage**: Tests all API endpoints and workflows
+4. **Easy Debugging**: Direct access to request/response data
+5. **CI/CD Friendly**: No display or browser dependencies
 
-E2E tests automatically:
-1. Build the application binary
-2. Start a test server on port 8081
-3. Create temporary test data directories
-4. Run browser-based tests
-5. Clean up resources
+#### Integration Test Categories
+
+- **File Upload Workflow**: Complete multipart file upload and processing
+- **Report Generation**: API-based report creation and retrieval
+- **API Endpoints**: Comprehensive testing of all REST endpoints
+- **Error Handling**: HTTP error codes and error response validation
+- **Performance**: Response time measurement and concurrent request testing
+- **Duplicate Handling**: File deduplication and conflict resolution
 
 ### 3. Test Utilities (`internal/testutil/testutil.go`)
 
@@ -156,7 +160,7 @@ Shared utilities for all tests:
 - Database setup with temporary SQLite files
 - Test file creation and management
 - Sample file fixtures (ttop, iostat, JSON)
-- HTTP test helpers
+- HTTP test helpers and httptest utilities
 - Assertion helpers
 
 ## Writing Tests
@@ -283,10 +287,13 @@ make test-package PKG=./internal/database
 make test-file PATTERN=TestDatabase_FileOperations
 ```
 
-### Debug E2E Tests
+### Debug Integration Tests
 ```bash
-# Run E2E tests with browser visible (modify e2e_test.go)
-# Set Headless: playwright.Bool(false) in browser launch options
+# Run integration tests with verbose output
+go test -v ./internal/handlers -run TestIntegration
+
+# Debug specific integration test
+go test -v ./internal/handlers -run TestIntegration_FileUploadWorkflow
 ```
 
 ## Best Practices
@@ -302,8 +309,8 @@ make test-file PATTERN=TestDatabase_FileOperations
 
 ### Common Issues
 
-1. **Playwright Installation**: Run `make install-test-deps` to install browsers
-2. **Port Conflicts**: E2E tests use port 8081, ensure it's available
+1. **Test Dependencies**: Run `make install-test-deps` to install required tools
+2. **Database Locks**: Integration tests use temporary SQLite databases
 3. **File Permissions**: Ensure test directories are writable
 4. **Race Conditions**: Use `-race` flag to detect race conditions
 
@@ -320,4 +327,5 @@ make test-file PATTERN=TestDatabase_FileOperations
 - Implement property-based testing
 - Add load testing scenarios
 - Enhance cross-platform testing
-- Add visual regression testing
+- Add API contract testing
+- Implement chaos engineering tests

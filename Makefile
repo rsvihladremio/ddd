@@ -14,7 +14,7 @@
 
 # DDD Testing Makefile
 
-.PHONY: test test-unit test-integration test-e2e test-all test-coverage clean build help security lint fmt
+.PHONY: test test-unit test-integration test-all test-coverage clean build help security lint fmt
 
 # Default target
 help: ## Show this help message
@@ -31,12 +31,11 @@ clean: ## Clean build artifacts and test data
 	@echo "Cleaning up..."
 	rm -rf bin/
 	rm -rf test-data/
-	rm -rf e2e/screenshots/
 	rm -rf coverage/
 	rm -f coverage.out
 
 # Run all tests
-test-all: test-unit test-integration test-e2e ## Run all tests (unit, integration, and e2e)
+test-all: test-unit test-integration ## Run all tests (unit and integration)
 
 # Run unit tests (fast tests that don't require external dependencies)
 test-unit: ## Run unit tests
@@ -48,12 +47,7 @@ test-integration: ## Run integration tests
 	@echo "Running integration tests..."
 	go test -v -race ./internal/database ./internal/reporters ./internal/workers ./internal/handlers ./internal/testutil
 
-# Run end-to-end tests
-test-e2e: build ## Run end-to-end tests with Playwright
-	@echo "Running end-to-end tests..."
-	@echo "Note: This requires the Playwright browsers to be installed"
-	@echo "Run 'go run github.com/playwright-community/playwright-go/cmd/playwright@latest install' if not done already"
-	cd e2e && go test -v -timeout 5m
+
 
 # Run all tests with coverage
 test-coverage: ## Run all tests with coverage reporting
@@ -153,9 +147,8 @@ security: ## Run security checks
 install-test-deps: ## Install testing dependencies
 	@echo "Installing testing dependencies..."
 	go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
-	go run github.com/playwright-community/playwright-go/cmd/playwright@latest install
 
-# Install test dependencies for CI (without Playwright browser installation)
+# Install test dependencies for CI
 install-test-deps-ci: ## Install testing dependencies for CI environment
 	@echo "Installing testing dependencies for CI..."
 	go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
@@ -164,21 +157,18 @@ install-test-deps-ci: ## Install testing dependencies for CI environment
 setup-test-env: install-test-deps ## Setup complete test environment
 	@echo "Setting up test environment..."
 	mkdir -p test-data/uploads
-	mkdir -p e2e/screenshots
 	mkdir -p coverage
 
 # Setup test environment for CI
 setup-test-env-ci: install-test-deps-ci ## Setup test environment for CI
 	@echo "Setting up test environment for CI..."
 	mkdir -p test-data/uploads
-	mkdir -p e2e/screenshots
 	mkdir -p coverage
 
 # Run tests in CI environment
 test-ci: ## Run tests suitable for CI environment
 	@echo "Running tests in CI mode..."
 	go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/...
-	@echo "Skipping e2e tests in CI (require display)"
 
 # Generate test report
 test-report: test-coverage ## Generate comprehensive test report

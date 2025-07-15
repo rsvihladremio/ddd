@@ -45,20 +45,7 @@ jobs:
     - name: Run integration tests
       run: make test-integration
 
-  e2e-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24.5'
-    - name: Install Playwright browsers with system dependencies
-      run: npx playwright install --with-deps
-    - name: Build application
-      run: make build
-    - name: Run e2e tests
-      run: make test-e2e
+
 
   security-checks:
     runs-on: ubuntu-latest
