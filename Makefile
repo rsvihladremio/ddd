@@ -164,9 +164,23 @@ install-test-deps: ## Install testing dependencies
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
 	go run github.com/playwright-community/playwright-go/cmd/playwright@latest install
 
+# Install test dependencies for CI (without Playwright browser installation)
+install-test-deps-ci: ## Install testing dependencies for CI environment
+	@echo "Installing testing dependencies for CI..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install golang.org/x/tools/cmd/goimports@latest
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
+
 # Setup test environment
 setup-test-env: install-test-deps ## Setup complete test environment
 	@echo "Setting up test environment..."
+	mkdir -p test-data/uploads
+	mkdir -p e2e/screenshots
+	mkdir -p coverage
+
+# Setup test environment for CI
+setup-test-env-ci: install-test-deps-ci ## Setup test environment for CI
+	@echo "Setting up test environment for CI..."
 	mkdir -p test-data/uploads
 	mkdir -p e2e/screenshots
 	mkdir -p coverage

@@ -32,8 +32,11 @@ jobs:
       with:
         go-version: '1.24.5'
 
+    - name: Install Playwright browsers with system dependencies
+      run: go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
+
     - name: Setup test environment and run all tests
-      run: make setup-test-env test-all
+      run: make setup-test-env-ci test-all
 
     - name: Install linting tools and run linting
       run: make lint-install lint
