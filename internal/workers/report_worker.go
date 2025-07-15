@@ -67,7 +67,9 @@ func (w *ReportWorker) processReport(report *database.Report) {
 	file, err := w.getFileByID(report.FileID)
 	if err != nil {
 		log.Printf("Error getting file %d: %v", report.FileID, err)
-		w.db.UpdateReport(report.ID, "failed", "", "File not found")
+		if err := w.db.UpdateReport(report.ID, "failed", "", "File not found"); err != nil {
+			log.Printf("Error updating report status to failed: %v", err)
+		}
 		return
 	}
 
@@ -93,10 +95,14 @@ func (w *ReportWorker) processReport(report *database.Report) {
 	// Update report with results
 	if reportErr != nil {
 		log.Printf("Error generating report: %v", reportErr)
-		w.db.UpdateReport(report.ID, "failed", "", reportErr.Error())
+		if err := w.db.UpdateReport(report.ID, "failed", "", reportErr.Error()); err != nil {
+			log.Printf("Error updating report status to failed: %v", err)
+		}
 	} else {
 		log.Printf("Report %d completed successfully", report.ID)
-		w.db.UpdateReport(report.ID, "completed", reportData, "")
+		if err := w.db.UpdateReport(report.ID, "completed", reportData, ""); err != nil {
+			log.Printf("Error updating report status to completed: %v", err)
+		}
 	}
 }
 

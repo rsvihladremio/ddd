@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"log"
 	"path/filepath"
 	"strings"
 )
@@ -21,43 +22,59 @@ const (
 	FileTypeUnknown       = "unknown"
 )
 
-// DetectFileType detects the type of file based on filename and content
+// DetectFileType detects the type of file based on content first, then filename as fallback
 func DetectFileType(filename string, content []byte) string {
-	// Check by file extension first
 	ext := strings.ToLower(filepath.Ext(filename))
-	baseName := strings.ToLower(filepath.Base(filename))
 
-	// JFR files
-	if ext == ".jfr" {
-		return FileTypeJFR
-	}
-
-	// Archive files
+	// Handle archives first (they need special processing)
 	if isArchive(ext) {
 		return detectArchiveContent(content)
 	}
 
-	// ttop.txt files
-	if strings.Contains(baseName, "ttop") && (ext == ".txt" || ext == "") {
+	// If we have content, prioritize content-based detection
+	if len(content) > 0 {
+		// Try content-based detection first
 		if isTTopFile(content) {
 			return FileTypeTTop
 		}
-	}
 
-	// iostat files
-	if strings.Contains(baseName, "iostat") || isIOStatFile(content) {
-		return FileTypeIOStat
-	}
+		if isIOStatFile(content) {
+			return FileTypeIOStat
+		}
 
-	// queries.json files
-	if strings.Contains(baseName, "queries") && ext == ".json" {
+		// Check Dremio profiles first (more specific than queries JSON)
+		if isDremioProfileFile(content) {
+			return FileTypeDremioProfile
+		}
+
 		if isQueriesJSONFile(content) {
 			return FileTypeQueriesJSON
 		}
 	}
 
-	// Dremio profile files (usually JSON with specific structure)
-	if isDremioProfileFile(content) {
+	// Fallback to filename-based detection
+	baseName := strings.ToLower(filepath.Base(filename))
+
+	// JFR files (primarily filename-based since they're binary)
+	if ext == ".jfr" {
+		return FileTypeJFR
+	}
+
+	// Filename-based fallbacks for when content is not available or doesn't match
+	if strings.Contains(baseName, "ttop") && (ext == ".txt" || ext == "") {
+		return FileTypeTTop
+	}
+
+	if strings.Contains(baseName, "iostat") {
+		return FileTypeIOStat
+	}
+
+	if strings.Contains(baseName, "queries") && ext == ".json" {
+		return FileTypeQueriesJSON
+	}
+
+	if ext == ".json" {
+		// Generic JSON file, might be a profile
 		return FileTypeDremioProfile
 	}
 
@@ -110,16 +127,23 @@ func extractZipFileList(content []byte) []string {
 // extractTarFileList extracts file list from TAR archive (handles gzip compression)
 func extractTarFileList(content []byte) []string {
 	reader := bytes.NewReader(content)
-	
+
 	// Try gzipped tar first
 	if gzReader, err := gzip.NewReader(reader); err == nil {
-		defer gzReader.Close()
+		defer func() {
+			if err := gzReader.Close(); err != nil {
+				log.Printf("Error closing gzip reader: %v", err)
+			}
+		}()
 		tarReader := tar.NewReader(gzReader)
 		return readTarFiles(tarReader)
 	}
 
 	// Try plain tar
-	reader.Seek(0, 0)
+	if _, err := reader.Seek(0, 0); err != nil {
+		log.Printf("Error seeking reader: %v", err)
+		return []string{}
+	}
 	tarReader := tar.NewReader(reader)
 	return readTarFiles(tarReader)
 }
@@ -139,7 +163,7 @@ func readTarFiles(tarReader *tar.Reader) []string {
 	return files
 }
 
-// analyzeFileList determines the primary file type based on file list
+// analyzeFileList determines the primary file type based on file list (filename patterns only)
 func analyzeFileList(files []string) string {
 	jfrCount := 0
 	ttopCount := 0
@@ -148,7 +172,8 @@ func analyzeFileList(files []string) string {
 	profileCount := 0
 
 	for _, filename := range files {
-		fileType := DetectFileType(filename, nil) // We can't read content from archive easily
+		// Use filename-based detection only for archives
+		fileType := detectFileTypeByName(filename)
 		switch fileType {
 		case FileTypeJFR:
 			jfrCount++
@@ -183,13 +208,46 @@ func analyzeFileList(files []string) string {
 	return FileTypeArchive
 }
 
+// detectFileTypeByName detects file type based only on filename patterns (for archive analysis)
+func detectFileTypeByName(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	baseName := strings.ToLower(filepath.Base(filename))
+
+	// JFR files
+	if ext == ".jfr" {
+		return FileTypeJFR
+	}
+
+	// TTop files (look for ttop in filename)
+	if strings.Contains(baseName, "ttop") && (ext == ".txt" || ext == "") {
+		return FileTypeTTop
+	}
+
+	// IOStat files
+	if strings.Contains(baseName, "iostat") {
+		return FileTypeIOStat
+	}
+
+	// Queries JSON files
+	if strings.Contains(baseName, "queries") && ext == ".json" {
+		return FileTypeQueriesJSON
+	}
+
+	// Generic JSON files (might be Dremio profiles)
+	if ext == ".json" {
+		return FileTypeDremioProfile
+	}
+
+	return FileTypeUnknown
+}
+
 // isTTopFile checks if content looks like a ttop file
 func isTTopFile(content []byte) bool {
 	contentStr := string(content[:min(1000, len(content))])
 	// ttop files typically have headers like "PID", "USER", "TIME", etc.
-	return strings.Contains(contentStr, "PID") && 
-		   strings.Contains(contentStr, "USER") &&
-		   (strings.Contains(contentStr, "TIME") || strings.Contains(contentStr, "%CPU"))
+	return strings.Contains(contentStr, "PID") &&
+		strings.Contains(contentStr, "USER") &&
+		(strings.Contains(contentStr, "TIME") || strings.Contains(contentStr, "%CPU"))
 }
 
 // isIOStatFile checks if content looks like an iostat file
@@ -197,9 +255,9 @@ func isIOStatFile(content []byte) bool {
 	contentStr := string(content[:min(1000, len(content))])
 	// iostat files typically have headers like "Device", "tps", "kB_read/s", etc.
 	return strings.Contains(contentStr, "Device") &&
-		   (strings.Contains(contentStr, "tps") || 
-		    strings.Contains(contentStr, "kB_read/s") ||
-		    strings.Contains(contentStr, "r/s"))
+		(strings.Contains(contentStr, "tps") ||
+			strings.Contains(contentStr, "kB_read/s") ||
+			strings.Contains(contentStr, "r/s"))
 }
 
 // isQueriesJSONFile checks if content looks like a queries.json file
@@ -213,8 +271,8 @@ func isQueriesJSONFile(content []byte) bool {
 	// Check if it's an array or object with query-related fields
 	contentStr := string(content[:min(1000, len(content))])
 	return strings.Contains(contentStr, "query") ||
-		   strings.Contains(contentStr, "sql") ||
-		   strings.Contains(contentStr, "execution")
+		strings.Contains(contentStr, "sql") ||
+		strings.Contains(contentStr, "execution")
 }
 
 // isDremioProfileFile checks if content looks like a Dremio profile file
@@ -228,9 +286,9 @@ func isDremioProfileFile(content []byte) bool {
 	// Check for Dremio-specific fields
 	contentStr := strings.ToLower(string(content[:min(2000, len(content))]))
 	return strings.Contains(contentStr, "dremio") ||
-		   strings.Contains(contentStr, "fragment") ||
-		   strings.Contains(contentStr, "operator") ||
-		   (strings.Contains(contentStr, "profile") && strings.Contains(contentStr, "query"))
+		strings.Contains(contentStr, "fragment") ||
+		strings.Contains(contentStr, "operator") ||
+		(strings.Contains(contentStr, "profile") && strings.Contains(contentStr, "query"))
 }
 
 // min returns the minimum of two integers

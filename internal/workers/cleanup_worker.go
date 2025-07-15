@@ -82,6 +82,23 @@ func (w *CleanupWorker) performCleanup() {
 	log.Println("File cleanup process completed")
 }
 
+// cleanupOldFiles performs cleanup of old files based on retention policy
+func (w *CleanupWorker) cleanupOldFiles() {
+	cutoffTime := time.Now().Add(-time.Duration(w.cfg.FileRetentionDays) * 24 * time.Hour)
+
+	files, err := w.getFilesForCleanup(cutoffTime, false)
+	if err != nil {
+		log.Printf("Error getting files for cleanup: %v", err)
+		return
+	}
+
+	for _, file := range files {
+		if err := w.deleteFile(file); err != nil {
+			log.Printf("Error deleting file %s: %v", file.FilePath, err)
+		}
+	}
+}
+
 // getDiskUsage calculates current disk usage percentage
 func (w *CleanupWorker) getDiskUsage() (float64, error) {
 	var stat syscall.Statfs_t

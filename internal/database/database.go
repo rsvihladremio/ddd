@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"log"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -168,7 +169,11 @@ func (db *DB) GetFiles(limit, offset int, includeDeleted bool) ([]*File, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var files []*File
 	for rows.Next() {
@@ -193,11 +198,11 @@ func (db *DB) MarkFileDeleted(fileID int) error {
 // InsertReport inserts a new report record
 func (db *DB) InsertReport(report *Report) error {
 	query := `
-		INSERT INTO reports (file_id, report_type, status, created_time, ddd_version)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO reports (file_id, report_type, status, created_time, ddd_version, report_data, error_message, completed_time)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := db.Exec(query, report.FileID, report.ReportType, report.Status,
-		report.CreatedTime, report.DDDVersion)
+		report.CreatedTime, report.DDDVersion, report.ReportData, report.ErrorMessage, report.CompletedTime)
 	if err != nil {
 		return err
 	}
@@ -233,7 +238,11 @@ func (db *DB) GetReportsByFileID(fileID int) ([]*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var reports []*Report
 	for rows.Next() {
@@ -259,7 +268,11 @@ func (db *DB) GetPendingReports() ([]*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var reports []*Report
 	for rows.Next() {
@@ -287,7 +300,11 @@ func (db *DB) GetFilesOlderThan(cutoffTime time.Time) ([]*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var files []*File
 	for rows.Next() {
@@ -326,6 +343,21 @@ func (db *DB) DeleteReport(reportID int) error {
 	query := `DELETE FROM reports WHERE id = ?`
 	_, err := db.Exec(query, reportID)
 	return err
+}
+
+// UpdateReportStatus updates only the status of a report
+func (db *DB) UpdateReportStatus(reportID int, status string) error {
+	return db.UpdateReport(reportID, status, "", "")
+}
+
+// CompleteReport marks a report as completed with data
+func (db *DB) CompleteReport(reportID int, reportData string) error {
+	return db.UpdateReport(reportID, "completed", reportData, "")
+}
+
+// FailReport marks a report as failed with error message
+func (db *DB) FailReport(reportID int, errorMessage string) error {
+	return db.UpdateReport(reportID, "failed", "", errorMessage)
 }
 
 // UpdateWorkerStatus updates or inserts worker status

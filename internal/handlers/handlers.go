@@ -96,7 +96,11 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Error closing uploaded file: %v", err)
+		}
+	}()
 
 	// Calculate file hash
 	hasher := sha256.New()
@@ -113,11 +117,13 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		// File already exists, return existing file info
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"file":    existingFile,
 			"message": "File already exists",
-		})
+		}); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+		}
 		return
 	}
 
@@ -131,7 +137,11 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
 	}
-	defer outFile.Close()
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			log.Printf("Error closing output file: %v", err)
+		}
+	}()
 
 	_, err = outFile.Write(fileContent)
 	if err != nil {
@@ -172,11 +182,13 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"file":    dbFile,
 		"message": "File uploaded successfully",
-	})
+	}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // HandleFiles handles file listing and searching
@@ -205,10 +217,7 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	includeDeleted := false
-	if includeDeletedStr == "true" {
-		includeDeleted = true
-	}
+	includeDeleted := includeDeletedStr == "true"
 
 	files, err := h.db.GetFiles(limit, offset, includeDeleted)
 	if err != nil {
@@ -217,10 +226,12 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"files":   files,
-	})
+	}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // HandleFileOperations handles individual file operations (delete, etc.)
@@ -248,10 +259,12 @@ func (h *Handlers) HandleFileOperations(w http.ResponseWriter, r *http.Request) 
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "File marked as deleted",
-		})
+		}); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+		}
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -284,10 +297,12 @@ func (h *Handlers) HandleReports(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"reports": reports,
-		})
+		}); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+		}
 
 	case http.MethodPost:
 		// Create new report for file ID
@@ -314,11 +329,13 @@ func (h *Handlers) HandleReports(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"report":  report,
 			"message": "Report queued for processing",
-		})
+		}); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+		}
 
 	case http.MethodDelete:
 		// Delete report by report ID
@@ -329,10 +346,12 @@ func (h *Handlers) HandleReports(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Report deleted successfully",
-		})
+		}); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+		}
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -368,10 +387,12 @@ func (h *Handlers) HandleReportContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":     true,
 		"report_data": report.ReportData,
-	})
+	}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // getFileByID retrieves a file by ID
@@ -510,7 +531,9 @@ func (h *Handlers) serveReportPage(w http.ResponseWriter, report *database.Repor
 </html>`
 
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		log.Printf("Error writing HTML response: %v", err)
+	}
 }
 
 // shouldAutoGenerateReport determines if we should automatically generate a report for a file type

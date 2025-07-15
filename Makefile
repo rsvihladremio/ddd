@@ -1,0 +1,176 @@
+# DDD Testing Makefile
+
+.PHONY: test test-unit test-integration test-e2e test-all test-coverage clean build help
+
+# Default target
+help: ## Show this help message
+	@echo "Available targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+
+# Build the application
+build: ## Build the DDD application
+	@echo "Building DDD application..."
+	go build -o bin/ddd ./cmd/ddd
+
+# Clean build artifacts and test data
+clean: ## Clean build artifacts and test data
+	@echo "Cleaning up..."
+	rm -rf bin/
+	rm -rf test-data/
+	rm -rf e2e/screenshots/
+	rm -rf coverage/
+	rm -f coverage.out
+	rm -f ddd-test
+
+# Run all tests
+test-all: test-unit test-integration test-e2e ## Run all tests (unit, integration, and e2e)
+
+# Run unit tests (fast tests that don't require external dependencies)
+test-unit: ## Run unit tests
+	@echo "Running unit tests..."
+	go test -v -race -short ./internal/config ./internal/detector
+
+# Run integration tests (tests that use real databases, files, etc.)
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	go test -v -race ./internal/database ./internal/reporters ./internal/workers ./internal/handlers ./internal/testutil
+
+# Run end-to-end tests
+test-e2e: build ## Run end-to-end tests with Playwright
+	@echo "Running end-to-end tests..."
+	@echo "Note: This requires the Playwright browsers to be installed"
+	@echo "Run 'go run github.com/playwright-community/playwright-go/cmd/playwright@latest install' if not done already"
+	cd e2e && go test -v -timeout 5m
+
+# Run all tests with coverage
+test-coverage: ## Run all tests with coverage reporting
+	@echo "Running tests with coverage..."
+	mkdir -p coverage
+	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -html=coverage.out -o coverage/coverage.html
+	go tool cover -func=coverage.out | tail -1
+	@echo "Coverage report generated at coverage/coverage.html"
+
+# Run tests in watch mode (requires entr)
+test-watch: ## Run tests in watch mode (requires 'entr' to be installed)
+	@echo "Running tests in watch mode..."
+	@echo "Watching for changes in Go files..."
+	find . -name "*.go" | entr -c make test-unit
+
+# Run specific test package
+test-package: ## Run tests for a specific package (usage: make test-package PKG=./internal/database)
+	@if [ -z "$(PKG)" ]; then \
+		echo "Usage: make test-package PKG=./internal/database"; \
+		exit 1; \
+	fi
+	@echo "Running tests for package: $(PKG)"
+	go test -v -race $(PKG)
+
+# Run tests with verbose output and race detection
+test-verbose: ## Run all tests with verbose output
+	@echo "Running all tests with verbose output..."
+	go test -v -race ./...
+
+# Run benchmarks
+test-bench: ## Run benchmark tests
+	@echo "Running benchmark tests..."
+	go test -bench=. -benchmem ./...
+
+# Lint the code
+lint: ## Run linting tools
+	@echo "Running linting..."
+	golangci-lint run
+
+# Lint with auto-install
+lint-install: ## Install golangci-lint and run linting
+	@echo "Installing golangci-lint and running linting..."
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	golangci-lint run
+
+# Format the code
+fmt: ## Format Go code
+	@echo "Formatting code..."
+	go fmt ./...
+	@if command -v goimports >/dev/null 2>&1; then \
+		goimports -w .; \
+	else \
+		echo "goimports not installed. Install with: go install golang.org/x/tools/cmd/goimports@latest"; \
+	fi
+
+# Run security checks
+security: ## Run security checks
+	@echo "Running security checks..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "gosec not installed. Install with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
+	fi
+
+# Install test dependencies
+install-test-deps: ## Install testing dependencies
+	@echo "Installing testing dependencies..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install golang.org/x/tools/cmd/goimports@latest
+	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+	go run github.com/playwright-community/playwright-go/cmd/playwright@latest install
+
+# Setup test environment
+setup-test-env: install-test-deps ## Setup complete test environment
+	@echo "Setting up test environment..."
+	mkdir -p test-data/uploads
+	mkdir -p e2e/screenshots
+	mkdir -p coverage
+
+# Run tests in CI environment
+test-ci: ## Run tests suitable for CI environment
+	@echo "Running tests in CI mode..."
+	go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/...
+	@echo "Skipping e2e tests in CI (require display)"
+
+# Generate test report
+test-report: test-coverage ## Generate comprehensive test report
+	@echo "Generating test report..."
+	@echo "=== Test Coverage Summary ===" > test-report.txt
+	go tool cover -func=coverage.out >> test-report.txt
+	@echo "" >> test-report.txt
+	@echo "=== Test Results ===" >> test-report.txt
+	go test -v ./... >> test-report.txt 2>&1 || true
+	@echo "Test report generated: test-report.txt"
+
+# Quick test (unit tests only)
+test: test-unit ## Run quick tests (alias for test-unit)
+
+# Development workflow
+dev-test: fmt lint test-unit ## Run development workflow (format, lint, test)
+	@echo "Development tests completed successfully!"
+
+# Pre-commit checks
+pre-commit: fmt lint test-integration ## Run pre-commit checks
+	@echo "Pre-commit checks completed successfully!"
+
+# Full validation (everything)
+validate: clean fmt lint test-all test-coverage ## Run full validation suite
+	@echo "Full validation completed successfully!"
+
+# Docker-based testing (if you want to add Docker support later)
+test-docker: ## Run tests in Docker container
+	@echo "Docker testing not implemented yet"
+	@echo "This would run tests in a clean Docker environment"
+
+# Performance testing
+test-perf: ## Run performance tests
+	@echo "Running performance tests..."
+	go test -bench=. -benchmem -cpuprofile=cpu.prof -memprofile=mem.prof ./...
+	@echo "Performance profiles generated: cpu.prof, mem.prof"
+
+# Test specific file pattern
+test-file: ## Test files matching pattern (usage: make test-file PATTERN=*_test.go)
+	@if [ -z "$(PATTERN)" ]; then \
+		echo "Usage: make test-file PATTERN=*database*"; \
+		exit 1; \
+	fi
+	@echo "Running tests matching pattern: $(PATTERN)"
+	go test -v -race -run $(PATTERN) ./...
