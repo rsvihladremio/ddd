@@ -1,0 +1,469 @@
+// DDD Application JavaScript
+
+class DDDApp {
+    constructor() {
+        this.currentPage = 1;
+        this.pageSize = 10;
+        this.searchQuery = '';
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.loadFiles();
+    }
+
+    setupEventListeners() {
+        // Upload area events
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+        uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
+        uploadArea.addEventListener('drop', this.handleDrop.bind(this));
+
+        fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+
+        // Search events
+        const searchButton = document.getElementById('search-button');
+        const searchInput = document.getElementById('search-input');
+
+        searchButton.addEventListener('click', this.handleSearch.bind(this));
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.handleSearch();
+            }
+        });
+
+        // Pagination events
+        document.getElementById('prev-page').addEventListener('click', () => {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.loadFiles();
+            }
+        });
+
+        document.getElementById('next-page').addEventListener('click', () => {
+            this.currentPage++;
+            this.loadFiles();
+        });
+
+        // Dialog events
+        const dialog = document.getElementById('report-dialog');
+        const closeButton = dialog.querySelector('.close');
+        closeButton.addEventListener('click', () => {
+            dialog.close();
+        });
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('upload-area').classList.add('dragover');
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('upload-area').classList.remove('dragover');
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('upload-area').classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.uploadFile(files[0]);
+        }
+    }
+
+    handleFileSelect(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            this.uploadFile(files[0]);
+        }
+    }
+
+    async uploadFile(file) {
+        const progressBar = document.getElementById('upload-progress');
+        const statusDiv = document.getElementById('upload-status');
+
+        // Show progress
+        progressBar.style.display = 'block';
+        statusDiv.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showStatus('File uploaded successfully!', 'success');
+                this.loadFiles(); // Refresh file list
+            } else {
+                this.showStatus('Upload failed: ' + (result.message || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            this.showStatus('Upload failed: ' + error.message, 'error');
+        } finally {
+            progressBar.style.display = 'none';
+        }
+    }
+
+    showStatus(message, type) {
+        const statusDiv = document.getElementById('upload-status');
+        statusDiv.textContent = message;
+        statusDiv.className = `upload-status ${type}`;
+        statusDiv.style.display = 'block';
+
+        // Hide after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+
+    handleSearch() {
+        this.searchQuery = document.getElementById('search-input').value;
+        this.currentPage = 1;
+        this.loadFiles();
+    }
+
+    async loadFiles() {
+        const loadingDiv = document.getElementById('files-loading');
+        const emptyDiv = document.getElementById('files-empty');
+        const filesList = document.getElementById('files-list');
+
+        loadingDiv.style.display = 'block';
+        emptyDiv.style.display = 'none';
+
+        try {
+            const params = new URLSearchParams({
+                limit: this.pageSize,
+                offset: (this.currentPage - 1) * this.pageSize
+            });
+
+            const response = await fetch(`/api/files?${params}`);
+            const result = await response.json();
+
+            if (result.success) {
+                this.renderFiles(result.files);
+                this.updatePagination(result.files.length);
+            } else {
+                throw new Error(result.message || 'Failed to load files');
+            }
+        } catch (error) {
+            console.error('Error loading files:', error);
+            filesList.innerHTML = '<tr><td colspan="5">Error loading files</td></tr>';
+        } finally {
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    renderFiles(files) {
+        const filesList = document.getElementById('files-list');
+        const emptyDiv = document.getElementById('files-empty');
+
+        if (files.length === 0) {
+            filesList.innerHTML = '';
+            emptyDiv.style.display = 'block';
+            return;
+        }
+
+        emptyDiv.style.display = 'none';
+
+        filesList.innerHTML = files.map(file => `
+            <tr>
+                <td class="mdl-data-table__cell--non-numeric">
+                    ${this.escapeHtml(file.original_name)}
+                </td>
+                <td>
+                    <span class="file-type-badge file-type-${file.file_type}">
+                        ${file.file_type}
+                    </span>
+                </td>
+                <td class="file-size">${this.formatFileSize(file.file_size)}</td>
+                <td>${this.formatDate(file.upload_time)}</td>
+                <td>
+                    <div class="file-actions">
+                        <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--colored"
+                                onclick="app.viewReports(${file.id})"
+                                title="View Reports">
+                            <i class="material-icons">assessment</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--accent"
+                                onclick="app.createReport(${file.id}, '${file.file_type}')"
+                                title="Generate Report">
+                            <i class="material-icons">play_arrow</i>
+                        </button>
+                        <button class="mdl-button mdl-js-button mdl-button--icon"
+                                onclick="app.deleteFile(${file.id})"
+                                title="Delete File">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        // Re-initialize MDL components
+        componentHandler.upgradeDom();
+    }
+
+    updatePagination(filesCount) {
+        const pageInfo = document.getElementById('page-info');
+        const prevButton = document.getElementById('prev-page');
+        const nextButton = document.getElementById('next-page');
+
+        pageInfo.textContent = `Page ${this.currentPage}`;
+        prevButton.disabled = this.currentPage === 1;
+        nextButton.disabled = filesCount < this.pageSize;
+    }
+
+    async viewReports(fileId) {
+        try {
+            const response = await fetch(`/api/reports/${fileId}`);
+            const result = await response.json();
+
+            if (result.success) {
+                this.showReportsDialog(result.reports);
+            } else {
+                throw new Error(result.message || 'Failed to load reports');
+            }
+        } catch (error) {
+            console.error('Error loading reports:', error);
+            alert('Failed to load reports: ' + error.message);
+        }
+    }
+
+    showReportsDialog(reports) {
+        const dialog = document.getElementById('report-dialog');
+        const content = document.getElementById('report-content');
+
+        if (reports.length === 0) {
+            content.innerHTML = '<p>No reports found for this file.</p>';
+        } else {
+            content.innerHTML = `
+                <div class="reports-container">
+                    <div class="reports-list">
+                        <h4>Reports</h4>
+                        ${reports.map(report => `
+                            <div class="report-item" data-report-id="${report.id}">
+                                <div class="report-info">
+                                    <div>
+                                        <strong>${report.report_type}</strong>
+                                        <span class="status-badge status-${report.status}">${report.status}</span>
+                                    </div>
+                                    <div>
+                                        <small>Created: ${this.formatDate(report.created_time)}</small>
+                                    </div>
+                                    <div>
+                                        <small>Version: ${report.ddd_version}</small>
+                                    </div>
+                                    <div>
+                                        ${report.completed_time ? `<small>Completed: ${this.formatDate(report.completed_time)}</small>` : ''}
+                                        ${report.error_message ? `<small style="color: #d32f2f;">Error: ${report.error_message}</small>` : ''}
+                                    </div>
+                                </div>
+                                <div class="report-actions">
+                                    ${report.status === 'completed' ? `
+                                        <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--colored"
+                                                onclick="app.viewReport(${report.id})" title="View Report">
+                                            <i class="material-icons">visibility</i>
+                                        </button>
+                                    ` : ''}
+                                    <button class="mdl-button mdl-js-button mdl-button--icon"
+                                            onclick="app.deleteReport(${report.id})" title="Delete Report">
+                                        <i class="material-icons">delete</i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="report-viewer">
+                        <div class="report-viewer-header">
+                            Report Viewer
+                        </div>
+                        <div class="report-viewer-content">
+                            <div class="report-viewer-empty">
+                                Select a report to view its content
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Re-initialize MDL components
+        componentHandler.upgradeDom();
+        dialog.showModal();
+    }
+
+    async viewReport(reportId) {
+        const reportItems = document.querySelectorAll('.report-item');
+        const viewerHeader = document.querySelector('.report-viewer-header');
+        const viewerContent = document.querySelector('.report-viewer-content');
+
+        // Highlight selected report
+        reportItems.forEach(item => item.classList.remove('selected'));
+        const selectedItem = document.querySelector(`[data-report-id="${reportId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+
+        // Show loading state
+        viewerHeader.textContent = 'Loading Report...';
+        viewerContent.innerHTML = '<div class="report-viewer-empty">Loading report content...</div>';
+
+        try {
+            const response = await fetch(`/api/reports/content/${reportId}`);
+            const result = await response.json();
+
+            if (result.success) {
+                viewerHeader.textContent = 'Report Content';
+                viewerContent.innerHTML = this.renderReportData(result.report_data);
+            } else {
+                throw new Error(result.message || 'Failed to load report content');
+            }
+        } catch (error) {
+            console.error('Error loading report content:', error);
+            viewerHeader.textContent = 'Error Loading Report';
+            viewerContent.innerHTML = `<div class="error-message">Failed to load report: ${error.message}</div>`;
+        }
+    }
+
+    async deleteReport(reportId) {
+        if (!confirm('Are you sure you want to delete this report?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/reports/${reportId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Remove the report item from the list
+                const reportItem = document.querySelector(`[data-report-id="${reportId}"]`);
+                if (reportItem) {
+                    reportItem.remove();
+                }
+
+                // Clear viewer if this report was selected
+                if (reportItem && reportItem.classList.contains('selected')) {
+                    const viewerHeader = document.querySelector('.report-viewer-header');
+                    const viewerContent = document.querySelector('.report-viewer-content');
+                    viewerHeader.textContent = 'Report Viewer';
+                    viewerContent.innerHTML = '<div class="report-viewer-empty">Select a report to view its content</div>';
+                }
+            } else {
+                throw new Error(result.message || 'Failed to delete report');
+            }
+        } catch (error) {
+            console.error('Error deleting report:', error);
+            alert('Failed to delete report: ' + error.message);
+        }
+    }
+
+    renderReportData(reportDataStr) {
+        try {
+            const reportData = JSON.parse(reportDataStr);
+            return `
+                <div class="report-content">
+                    <h4>Report Summary</h4>
+                    <p>${reportData.summary || 'No summary available'}</p>
+                    <h4>Analysis</h4>
+                    <p>${reportData.analysis || 'No analysis available'}</p>
+                    ${reportData.charts ? this.renderCharts(reportData.charts) : ''}
+                </div>
+            `;
+        } catch (error) {
+            return `<pre class="report-raw-data">${this.escapeHtml(reportDataStr)}</pre>`;
+        }
+    }
+
+    renderCharts(charts) {
+        // This would render ECharts charts - implementation depends on specific chart data
+        return '<div class="chart-container">Charts would be rendered here</div>';
+    }
+
+    async createReport(fileId, fileType) {
+        try {
+            const response = await fetch(`/api/reports/${fileId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    report_type: fileType
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Report queued for processing!');
+            } else {
+                throw new Error(result.message || 'Failed to create report');
+            }
+        } catch (error) {
+            console.error('Error creating report:', error);
+            alert('Failed to create report: ' + error.message);
+        }
+    }
+
+    async deleteFile(fileId) {
+        if (!confirm('Are you sure you want to delete this file?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/files/${fileId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.loadFiles(); // Refresh file list
+            } else {
+                throw new Error(result.message || 'Failed to delete file');
+            }
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            alert('Failed to delete file: ' + error.message);
+        }
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// Initialize the application
+const app = new DDDApp();

@@ -1,0 +1,434 @@
+/* Custom styles for DDD application */
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* Upload section within Files card */
+.upload-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
+}
+
+.upload-area:hover {
+    border-color: #2196F3;
+    background-color: #f0f8ff;
+}
+
+.upload-area.dragover {
+    border-color: #2196F3;
+    background-color: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    margin-bottom: 16px;
+}
+
+.upload-icon .material-icons {
+    font-size: 48px;
+    color: #666;
+}
+
+.upload-text {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.upload-subtext {
+    font-size: 14px;
+    color: #666;
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.file-actions button {
+    min-width: auto;
+    padding: 4px 8px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-running {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.report-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.report-chart {
+    width: 100%;
+    height: 300px;
+    margin: 16px 0;
+}
+
+.file-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: white;
+}
+
+.file-type-jfr {
+    background-color: #ff9800;
+}
+
+.file-type-ttop {
+    background-color: #4caf50;
+}
+
+.file-type-iostat {
+    background-color: #2196f3;
+}
+
+.file-type-dremio_profile {
+    background-color: #9c27b0;
+}
+
+.file-type-queries_json {
+    background-color: #f44336;
+}
+
+.file-type-archive {
+    background-color: #795548;
+}
+
+.file-type-unknown {
+    background-color: #607d8b;
+}
+
+.file-size {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: #666;
+}
+
+.upload-progress {
+    margin-top: 16px;
+    width: 100%;
+}
+
+.upload-status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.upload-status.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.upload-status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.search-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.search-section .mdl-textfield {
+    flex: 1;
+}
+
+.mdl-data-table {
+    border: none;
+    width: 100%;
+    min-width: 800px;
+}
+
+.mdl-data-table th {
+    color: rgba(0,0,0,.54);
+    font-weight: 500;
+}
+
+.mdl-data-table td {
+    border-top: 1px solid rgba(0,0,0,.12);
+}
+
+/* Make the files card wider */
+.mdl-card {
+    width: 100%;
+    max-width: none;
+}
+
+
+/* Make specific columns wider */
+.mdl-data-table th:first-child,
+.mdl-data-table td:first-child {
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.mdl-data-table th:nth-child(2),
+.mdl-data-table td:nth-child(2) {
+    min-width: 100px;
+}
+
+.mdl-data-table th:nth-child(3),
+.mdl-data-table td:nth-child(3) {
+    min-width: 80px;
+}
+
+.mdl-data-table th:nth-child(4),
+.mdl-data-table td:nth-child(4) {
+    min-width: 150px;
+}
+
+.mdl-data-table th:nth-child(5),
+.mdl-data-table td:nth-child(5) {
+    min-width: 150px;
+}
+
+.mdl-cell {
+    margin-bottom: 16px;
+}
+
+/* Ensure equal padding inside the card */
+.mdl-card__supporting-text {
+    margin: auto;
+}
+
+
+
+/* Make the page content wider with equal margins */
+.page-content {
+    padding: 16px;
+}
+
+/* Center the grid content with equal margins */
+.mdl-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    justify-content: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .upload-area {
+        padding: 20px;
+    }
+    
+    .upload-icon .material-icons {
+        font-size: 36px;
+    }
+    
+    .upload-text {
+        font-size: 16px;
+    }
+    
+    .file-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .mdl-data-table {
+        font-size: 12px;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Dialog styles */
+.mdl-dialog {
+    width: 90%;
+    max-width: 1200px;
+    min-height: 600px;
+}
+
+.mdl-dialog__content {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Chart container */
+.chart-container {
+    margin: 16px 0;
+    padding: 16px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Report dialog styles */
+.reports-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+}
+
+.reports-list {
+    flex: 0 0 auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.report-viewer {
+    flex: 1;
+    min-height: 200px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.report-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s ease;
+}
+
+.report-item:hover {
+    background-color: #f5f5f5;
+}
+
+.report-item:last-child {
+    border-bottom: none;
+}
+
+.report-item.selected {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.report-info {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.report-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.report-viewer-header {
+    padding: 16px;
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 4px 4px 0 0;
+    font-weight: 500;
+}
+
+.report-viewer-content {
+    padding: 16px;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 0 0 4px 4px;
+}
+
+.report-viewer-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    font-style: italic;
+}
+
+.report-content {
+    max-height: none;
+    overflow-y: visible;
+}
+
+.report-raw-data {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.error-message {
+    color: #d32f2f;
+    background-color: #ffebee;
+    padding: 12px;
+    border-radius: 4px;
+    border-left: 4px solid #d32f2f;
+}
