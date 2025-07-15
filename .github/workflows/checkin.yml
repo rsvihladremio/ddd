@@ -69,7 +69,7 @@ jobs:
       with:
         go-version: '1.24.5'
     - name: Install security tools
-      run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+      run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
     - name: Run security checks
       run: make security
 
@@ -81,5 +81,5 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.24.5'
-    - name: Install linting tools and run linting
-      run: make lint-install lint
+    - name: Run linting
+      run: make lint

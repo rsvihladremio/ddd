@@ -92,17 +92,16 @@ test-bench: ## Run benchmark tests
 # Lint the code
 lint: ## Run linting tools
 	@echo "Running linting..."
-	golangci-lint run
-
-# Lint with auto-install
-lint-install: ## Install golangci-lint
-	@echo "Installing golangci-lint..."
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "Installing golangci-lint..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
-	else \
-		echo "golangci-lint already installed"; \
+	@echo "Checking code formatting..."
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "The following files are not properly formatted:"; \
+		gofmt -l .; \
+		echo "Run 'make fmt' to fix formatting issues."; \
+		exit 1; \
 	fi
+	@echo "Code formatting is correct ✓"
+	@echo "Running go vet..."
+	go vet ./...
 
 # Check copyright headers
 check-headers: ## Check that all Go files have the required copyright header
@@ -139,12 +138,7 @@ add-headers: ## Add copyright headers to all Go files that are missing them
 # Format the code
 fmt: ## Format Go code
 	@echo "Formatting code..."
-	go fmt ./...
-	@if command -v goimports >/dev/null 2>&1; then \
-		goimports -w .; \
-	else \
-		echo "goimports not installed. Install with: go install golang.org/x/tools/cmd/goimports@latest"; \
-	fi
+	gofmt -w .
 
 # Run security checks
 security: ## Run security checks
@@ -152,23 +146,19 @@ security: ## Run security checks
 	@if command -v gosec >/dev/null 2>&1; then \
 		gosec ./...; \
 	else \
-		echo "gosec not installed. Install with: go install github.com/securego/gosec/v2/cmd/gosec@latest"; \
+		echo "gosec not installed. Install with: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5"; \
 	fi
 
 # Install test dependencies
 install-test-deps: ## Install testing dependencies
 	@echo "Installing testing dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
+	go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
 	go run github.com/playwright-community/playwright-go/cmd/playwright@latest install
 
 # Install test dependencies for CI (without Playwright browser installation)
 install-test-deps-ci: ## Install testing dependencies for CI environment
 	@echo "Installing testing dependencies for CI..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
+	go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
 
 # Setup test environment
 setup-test-env: install-test-deps ## Setup complete test environment
