@@ -119,8 +119,11 @@ func (w *CleanupWorker) getDiskUsage() (float64, error) {
 	}
 
 	// Calculate usage percentage
-	total := stat.Blocks * uint64(stat.Bsize)
-	free := stat.Bavail * uint64(stat.Bsize)
+	// Convert Bsize to uint64 - gosec G115 is acceptable here as Bsize represents block size
+	// which is always positive in valid filesystem contexts
+	blockSize := uint64(stat.Bsize) // #nosec G115
+	total := stat.Blocks * blockSize
+	free := stat.Bavail * blockSize
 	used := total - free
 
 	return float64(used) / float64(total), nil
