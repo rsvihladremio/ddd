@@ -287,3 +287,151 @@ func TestReportErrorHandling(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to read file")
 	})
 }
+
+func TestGenerateTTopReport_HTMLReport(t *testing.T) {
+	t.Run("HTML report included in generated report", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "ttop_with_html.txt")
+
+		// Create sample ttop content with multiple snapshots
+		sampleContent := `top - 12:02:03 up  3:07,  0 users,  load average: 3.18, 1.16, 0.41
+Threads: 262 total,   6 running, 256 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 85.7 us,  7.1 sy,  0.0 ni,  5.7 id,  1.4 wa,  0.0 hi,  0.0 si,  0.0 st
+MiB Mem :  16008.2 total,  10953.7 free,   3713.5 used,   1341.1 buff/cache
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+    997 dremio    20   0 7009048   3.4g  98412 R  87.5  21.9   1:36.52 C2 CompilerThre
+    996 dremio    20   0 7009048   3.4g  98412 R  81.2  21.9   1:35.89 C2 CompilerThre
+   5190 dremio    20   0 7009064   3.4g  98412 S  18.8  21.9   0:03.83 rbound-command1
+
+top - 12:02:04 up  3:07,  0 users,  load average: 3.18, 1.16, 0.41
+Threads: 262 total,   2 running, 260 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 75.3 us,  3.2 sy,  0.0 ni, 20.4 id,  0.0 wa,  0.0 hi,  1.0 si,  0.0 st
+MiB Mem :  16008.2 total,  10953.7 free,   3713.5 used,   1341.1 buff/cache
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+    996 dremio    20   0 7008232   3.4g  98412 S  82.2  21.9   1:36.72 C2 CompilerThre
+    997 dremio    20   0 7008232   3.4g  98412 R  82.2  21.9   1:37.35 C2 CompilerThre
+    998 dremio    20   0 7008232   3.4g  98412 S  14.9  21.9   0:36.57 C1 CompilerThre`
+
+		err := os.WriteFile(filePath, []byte(sampleContent), 0644)
+		require.NoError(t, err)
+
+		// Generate report
+		reportJSON, err := GenerateTTopReport(filePath)
+		require.NoError(t, err)
+		assert.NotEmpty(t, reportJSON)
+
+		// Parse and validate the report
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		// Verify all original fields are still present
+		assert.Equal(t, "ttop", report["type"])
+		assert.Equal(t, float64(len(sampleContent)), report["file_size"])
+		assert.Contains(t, report, "summary")
+		assert.Contains(t, report, "analysis")
+		assert.Contains(t, report, "generated_at")
+
+		// Verify new fields are present
+		assert.Contains(t, report, "html_report")
+		assert.Contains(t, report, "snapshot_count")
+		assert.Contains(t, report, "unique_threads")
+		assert.Contains(t, report, "peak_threads")
+
+		// Verify HTML report contains chart elements
+		htmlReport, ok := report["html_report"].(string)
+		require.True(t, ok, "html_report should be a string")
+		assert.NotEmpty(t, htmlReport)
+
+		// Check that HTML contains expected chart containers
+		assert.Contains(t, htmlReport, `id="threadCountChart"`)
+		assert.Contains(t, htmlReport, `id="threadByCpuChart"`)
+		assert.Contains(t, htmlReport, `id="memoryByTypeChart"`)
+		assert.Contains(t, htmlReport, `id="threadsByTypeChart"`)
+
+		// Verify ECharts is included
+		assert.Contains(t, htmlReport, "echarts.min.js")
+		assert.Contains(t, htmlReport, "echarts.init")
+		assert.Contains(t, htmlReport, "setOption")
+
+		// Verify snapshot count is correct
+		assert.Equal(t, float64(2), report["snapshot_count"])
+
+		// Verify unique threads count
+		assert.Equal(t, float64(4), report["unique_threads"]) // PIDs: 997, 996, 5190, 998
+
+		// Verify peak threads count
+		assert.Equal(t, float64(3), report["peak_threads"]) // First snapshot has 3 threads
+	})
+
+	t.Run("HTML report with empty ttop content", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "empty_ttop.txt")
+
+		err := os.WriteFile(filePath, []byte(""), 0644)
+		require.NoError(t, err)
+
+		reportJSON, err := GenerateTTopReport(filePath)
+		require.NoError(t, err)
+
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		// Should still have html_report field
+		assert.Contains(t, report, "html_report")
+		htmlReport, ok := report["html_report"].(string)
+		require.True(t, ok)
+		assert.NotEmpty(t, htmlReport)
+
+		// Should indicate no data available
+		assert.Contains(t, htmlReport, "No data available")
+	})
+
+	t.Run("HTML report content validation", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "single_snapshot.txt")
+
+		sampleContent := `top - 15:30:45 up 1 day,  5:23,  2 users,  load average: 1.23, 1.45, 1.67
+Threads: 100 total,   2 running, 98 sleeping,   0 stopped,   0 zombie
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+   1234 root      20   0  123456  12345   1234 R  25.5  10.2   0:30.12 test-process
+   5678 user      20   0  654321  54321   4321 S  15.0   5.1   0:15.30 another-process`
+
+		err := os.WriteFile(filePath, []byte(sampleContent), 0644)
+		require.NoError(t, err)
+
+		reportJSON, err := GenerateTTopReport(filePath)
+		require.NoError(t, err)
+
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		htmlReport := report["html_report"].(string)
+
+		// Verify HTML structure
+		assert.Contains(t, htmlReport, "<!DOCTYPE html>")
+		assert.Contains(t, htmlReport, "<html lang=\"en\">")
+		assert.Contains(t, htmlReport, "<head>")
+		assert.Contains(t, htmlReport, "<body>")
+		assert.Contains(t, htmlReport, "</html>")
+
+		// Verify chart containers
+		assert.Contains(t, htmlReport, "Thread Count Over Time")
+		assert.Contains(t, htmlReport, "Threads by Name/ID CPU Usage Over Time")
+		assert.Contains(t, htmlReport, "Memory Usage by Memory Type Over Time")
+
+		// Verify ECharts CDN is included
+		assert.Contains(t, htmlReport, "echarts.min.js")
+
+		// Verify summary information
+		assert.Contains(t, htmlReport, "1 snapshots") // Single snapshot
+		assert.Contains(t, htmlReport, "2")           // Should mention 2 unique threads
+	})
+}

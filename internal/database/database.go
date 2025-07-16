@@ -19,7 +19,7 @@ import (
 	"log"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/glebarez/go-sqlite"
 )
 
 // DB wraps the sql.DB with additional methods
@@ -29,7 +29,7 @@ type DB struct {
 
 // Initialize creates and initializes the SQLite database
 func Initialize(dbPath string) (*DB, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err
 	}
