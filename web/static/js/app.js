@@ -483,8 +483,37 @@ class DDDApp {
     }
 
     renderCharts(charts) {
-        // This would render ECharts charts - implementation depends on specific chart data
-        return '<div class="chart-container">Charts would be rendered here</div>';
+        if (!charts || charts.length === 0) {
+            return '<div class="chart-container">No charts available</div>';
+        }
+        
+        let chartsHTML = '';
+        charts.forEach((chart, index) => {
+            chartsHTML += `
+                <div class="chart-container">
+                    <div class="chart-title">${chart.title}</div>
+                    <div id="chart-${index}" style="width: 100%; height: 400px;"></div>
+                </div>
+            `;
+        });
+        
+        // Add script to initialize ECharts
+        chartsHTML += `
+            <script>
+                // Initialize ECharts for each chart
+                ${charts.map((chart, index) => `
+                    const chart${index} = echarts.init(document.getElementById('chart-${index}'));
+                    chart${index}.setOption(${JSON.stringify(chart.options)});
+                `).join('')}
+                
+                // Make charts responsive
+                window.addEventListener('resize', function() {
+                    ${charts.map((chart, index) => `chart${index}.resize();`).join('')}
+                });
+            </script>
+        `;
+        
+        return chartsHTML;
     }
 
     async createReport(fileId, fileType) {

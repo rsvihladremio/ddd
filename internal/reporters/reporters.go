@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // secureReadFile safely reads a file with path validation to prevent directory traversal
@@ -40,20 +41,52 @@ func secureReadFile(filePath string) ([]byte, error) {
 	return os.ReadFile(cleanPath)
 }
 
-// GenerateTTopReport generates a report for ttop.txt files
+// GenerateTTopReport generates a comprehensive report for ttop.txt files
+// This function parses ttop output to extract thread information over time
+// and generates both a JSON summary and an HTML report with interactive charts
 func GenerateTTopReport(filePath string) (string, error) {
 	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Parse ttop content and generate report
+	// Parse ttop content to extract structured data
+	parsedData, err := ParseTTop(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse ttop content: %w", err)
+	}
+
+	// Generate HTML report with charts
+	htmlReport, err := GenerateTTopHTML(parsedData)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate HTML report: %w", err)
+	}
+
+	// Calculate summary statistics
+	snapshotCount := len(parsedData.Snapshots)
+	uniqueThreads := countUniqueThreads(parsedData)
+	peakThreadCount := findPeakThreadCount(parsedData)
+	
+	// Generate summary and analysis text
+	summary := fmt.Sprintf("TTop analysis report covering %d snapshots with %d unique threads observed", 
+		snapshotCount, uniqueThreads)
+	
+	analysis := fmt.Sprintf("Peak thread count: %d. Analysis includes thread count over time, "+
+		"CPU usage patterns for top 5 busiest threads, and memory usage distribution by user. "+
+		"Interactive charts provide detailed visualization of system performance metrics.", 
+		peakThreadCount)
+
+	// Build comprehensive report structure
 	report := map[string]interface{}{
-		"type":         "ttop",
-		"file_size":    len(content),
-		"summary":      "TTop analysis report",
-		"analysis":     "Basic ttop file analysis - implementation pending",
-		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
+		"type":           "ttop",
+		"file_size":      len(content),
+		"summary":        summary,
+		"analysis":       analysis,
+		"generated_at":   fmt.Sprintf("%s", time.Now().Format(time.RFC3339)),
+		"html_report":    htmlReport,
+		"snapshot_count": snapshotCount,
+		"unique_threads": uniqueThreads,
+		"peak_threads":   peakThreadCount,
 	}
 
 	reportJSON, err := json.Marshal(report)
