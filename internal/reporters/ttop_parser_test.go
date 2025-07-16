@@ -116,7 +116,7 @@ Threads: 262 total,   6 running, 256 sleeping,   0 stopped,   0 zombie
 		require.NoError(t, err)
 		require.NotNil(t, data)
 		assert.Len(t, data.Snapshots, 1)
-		
+
 		// Should have 2 valid threads (malformed line should be ignored)
 		assert.Len(t, data.Snapshots[0].Threads, 2)
 	})
@@ -153,7 +153,7 @@ func TestParseTimestampFromTopLine(t *testing.T) {
 		line := "top - 12:02:03 up  3:07,  0 users,  load average: 3.18, 1.16, 0.41"
 		timestamp, err := parseTimestampFromTopLine(line)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, 12, timestamp.Hour())
 		assert.Equal(t, 2, timestamp.Minute())
 		assert.Equal(t, 3, timestamp.Second())
@@ -177,7 +177,7 @@ func TestParseThreadLine(t *testing.T) {
 		line := "    997 dremio    20   0 7009048   3.4g  98412 R  87.5  21.9   1:36.52 C2 CompilerThre"
 		thread, err := parseThreadLine(line)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, 997, thread.PID)
 		assert.Equal(t, "dremio", thread.User)
 		assert.Equal(t, 87.5, thread.CPU)
@@ -189,7 +189,7 @@ func TestParseThreadLine(t *testing.T) {
 		line := "   1234 root      20   0  123456  12345   1234 R  25.5  10.2   0:30.12 java -jar application.jar"
 		thread, err := parseThreadLine(line)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, 1234, thread.PID)
 		assert.Equal(t, "root", thread.User)
 		assert.Equal(t, 25.5, thread.CPU)
@@ -213,7 +213,7 @@ func TestParseThreadLine(t *testing.T) {
 		line := "    997 dremio    20   0 7009048   3.4g  98412 R  invalid  invalid   1:36.52 C2 CompilerThre"
 		thread, err := parseThreadLine(line)
 		require.NoError(t, err)
-		
+
 		// Should default to 0.0 for invalid CPU/MEM values
 		assert.Equal(t, 997, thread.PID)
 		assert.Equal(t, "dremio", thread.User)
@@ -234,16 +234,16 @@ func TestTTopReportDataStructure(t *testing.T) {
 			MEM:     10.2,
 			Command: "test-command",
 		}
-		
+
 		snapshot := TTopSnapshot{
 			Timestamp: timestamp,
 			Threads:   []ThreadInfo{thread},
 		}
-		
+
 		data := TTopReportData{
 			Snapshots: []TTopSnapshot{snapshot},
 		}
-		
+
 		// Verify structure
 		assert.Len(t, data.Snapshots, 1)
 		assert.Equal(t, timestamp, data.Snapshots[0].Timestamp)

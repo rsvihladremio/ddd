@@ -55,8 +55,6 @@ func TestGenerateTTopHTML(t *testing.T) {
 
 		// Verify all chart containers are present
 		assert.Contains(t, html, `id="threadCountChart"`)
-		assert.Contains(t, html, `id="cpuChart"`)
-		assert.Contains(t, html, `id="memoryChart"`)
 		assert.Contains(t, html, `id="threadByCpuChart"`)
 		assert.Contains(t, html, `id="memoryByTypeChart"`)
 		assert.Contains(t, html, `id="threadsByTypeChart"`)

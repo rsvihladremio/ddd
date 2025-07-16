@@ -53,29 +53,29 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	var snapshots []TTopSnapshot
 	var currentSnapshot *TTopSnapshot
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Skip empty lines
 		if line == "" {
 			continue
 		}
-		
+
 		// Check if this line starts a new snapshot
 		if strings.HasPrefix(line, "top - ") {
 			// Save previous snapshot if it exists
 			if currentSnapshot != nil {
 				snapshots = append(snapshots, *currentSnapshot)
 			}
-			
+
 			// Parse timestamp from the "top - " line
 			timestamp, err := parseTimestampFromTopLine(line)
 			if err != nil {
 				// If we can't parse timestamp, use current time as fallback
 				timestamp = time.Now()
 			}
-			
+
 			// Start new snapshot
 			currentSnapshot = &TTopSnapshot{
 				Timestamp: timestamp,
@@ -83,7 +83,7 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 			}
 			continue
 		}
-		
+
 		// If we're in a snapshot, try to parse thread information
 		if currentSnapshot != nil {
 			threadInfo, err := parseThreadLine(line)
@@ -93,16 +93,16 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 			// Silently ignore lines that don't parse as thread info
 		}
 	}
-	
+
 	// Don't forget to add the last snapshot
 	if currentSnapshot != nil {
 		snapshots = append(snapshots, *currentSnapshot)
 	}
-	
+
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading ttop content: %w", err)
 	}
-	
+
 	return &TTopReportData{Snapshots: snapshots}, nil
 }
 
@@ -113,20 +113,20 @@ func parseTimestampFromTopLine(line string) (time.Time, error) {
 	if len(parts) < 3 {
 		return time.Time{}, fmt.Errorf("invalid top line format")
 	}
-	
+
 	// The timestamp should be the third field (index 2)
 	timeStr := parts[2]
-	
+
 	// Parse HH:MM:SS format
 	parsedTime, err := time.Parse("15:04:05", timeStr)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse timestamp %s: %w", timeStr, err)
 	}
-	
+
 	// Since we only have time, not date, we'll use today's date
 	// In a real scenario, you might want to handle date parsing differently
 	now := time.Now()
-	return time.Date(now.Year(), now.Month(), now.Day(), 
+	return time.Date(now.Year(), now.Month(), now.Day(),
 		parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, now.Location()), nil
 }
 
@@ -135,38 +135,38 @@ func parseTimestampFromTopLine(line string) (time.Time, error) {
 // We need at least 12 columns to extract all required information
 func parseThreadLine(line string) (ThreadInfo, error) {
 	fields := strings.Fields(line)
-	
+
 	// Need at least 12 fields to have all the required information
 	if len(fields) < 12 {
 		return ThreadInfo{}, fmt.Errorf("insufficient fields in thread line")
 	}
-	
+
 	// First field should be PID (integer)
 	pid, err := strconv.Atoi(fields[0])
 	if err != nil {
 		return ThreadInfo{}, fmt.Errorf("invalid PID: %w", err)
 	}
-	
+
 	// Second field is USER
 	user := fields[1]
-	
+
 	// %CPU is at index 8 (9th column)
 	cpu, err := strconv.ParseFloat(fields[8], 64)
 	if err != nil {
 		// If CPU parsing fails, default to 0.0
 		cpu = 0.0
 	}
-	
+
 	// %MEM is at index 9 (10th column)
 	mem, err := strconv.ParseFloat(fields[9], 64)
 	if err != nil {
 		// If MEM parsing fails, default to 0.0
 		mem = 0.0
 	}
-	
+
 	// COMMAND starts at index 11 (12th column) and may span multiple fields
 	command := strings.Join(fields[11:], " ")
-	
+
 	return ThreadInfo{
 		PID:     pid,
 		User:    user,

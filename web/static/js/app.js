@@ -468,6 +468,17 @@ class DDDApp {
     renderReportData(reportDataStr) {
         try {
             const reportData = JSON.parse(reportDataStr);
+            
+            // If we have a full HTML report, use that
+            if (reportData.html_report) {
+                return `
+                    <div class="html-report-container">
+                        ${reportData.html_report}
+                    </div>
+                `;
+            }
+            
+            // Fall back to basic report display
             return `
                 <div class="report-content">
                     <h4>Report Summary</h4>

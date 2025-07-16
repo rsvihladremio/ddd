@@ -529,6 +529,17 @@ func (h *Handlers) serveReportPage(w http.ResponseWriter, report *database.Repor
         function renderReportData(reportDataStr) {
             try {
                 const reportData = JSON.parse(reportDataStr);
+
+                // If there's an HTML report, serve it as a complete page
+                if (reportData.html_report) {
+                    // Replace the entire page with the HTML report
+                    document.open();
+                    document.write(reportData.html_report);
+                    document.close();
+                    return; // Don't return anything since we've replaced the page
+                }
+
+                // Fallback to summary and analysis for other report types
                 return '<div class="report-content">' +
                     '<h4>Report Summary</h4>' +
                     '<p>' + (reportData.summary || 'No summary available') + '</p>' +

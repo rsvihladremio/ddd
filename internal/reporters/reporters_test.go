@@ -347,14 +347,16 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		require.True(t, ok, "html_report should be a string")
 		assert.NotEmpty(t, htmlReport)
 
-		// Check that HTML contains expected chart canvases
-		assert.Contains(t, htmlReport, "<canvas id=\"threadCountChart\">")
-		assert.Contains(t, htmlReport, "<canvas id=\"cpuChart\">")
-		assert.Contains(t, htmlReport, "<canvas id=\"memoryChart\">")
+		// Check that HTML contains expected chart containers
+		assert.Contains(t, htmlReport, `id="threadCountChart"`)
+		assert.Contains(t, htmlReport, `id="threadByCpuChart"`)
+		assert.Contains(t, htmlReport, `id="memoryByTypeChart"`)
+		assert.Contains(t, htmlReport, `id="threadsByTypeChart"`)
 
-		// Verify Chart.js is included
-		assert.Contains(t, htmlReport, "chart.js")
-		assert.Contains(t, htmlReport, "new Chart(")
+		// Verify ECharts is included
+		assert.Contains(t, htmlReport, "echarts.min.js")
+		assert.Contains(t, htmlReport, "echarts.init")
+		assert.Contains(t, htmlReport, "setOption")
 
 		// Verify snapshot count is correct
 		assert.Equal(t, float64(2), report["snapshot_count"])
@@ -422,14 +424,14 @@ Threads: 100 total,   2 running, 98 sleeping,   0 stopped,   0 zombie
 
 		// Verify chart containers
 		assert.Contains(t, htmlReport, "Thread Count Over Time")
-		assert.Contains(t, htmlReport, "CPU Usage - Top 5 Busiest Threads")
-		assert.Contains(t, htmlReport, "Memory Usage by User")
+		assert.Contains(t, htmlReport, "Threads by Name/ID CPU Usage Over Time")
+		assert.Contains(t, htmlReport, "Memory Usage by Memory Type Over Time")
 
-		// Verify Chart.js CDN is included
-		assert.Contains(t, htmlReport, "cdn.jsdelivr.net/npm/chart.js")
+		// Verify ECharts CDN is included
+		assert.Contains(t, htmlReport, "echarts.min.js")
 
 		// Verify summary information
 		assert.Contains(t, htmlReport, "1 snapshots") // Single snapshot
-		assert.Contains(t, htmlReport, "2") // Should mention 2 unique threads
+		assert.Contains(t, htmlReport, "2")           // Should mention 2 unique threads
 	})
 }

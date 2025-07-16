@@ -66,14 +66,14 @@ func GenerateTTopReport(filePath string) (string, error) {
 	snapshotCount := len(parsedData.Snapshots)
 	uniqueThreads := countUniqueThreads(parsedData)
 	peakThreadCount := findPeakThreadCount(parsedData)
-	
+
 	// Generate summary and analysis text
-	summary := fmt.Sprintf("TTop analysis report covering %d snapshots with %d unique threads observed", 
+	summary := fmt.Sprintf("TTop analysis report covering %d snapshots with %d unique threads observed",
 		snapshotCount, uniqueThreads)
-	
+
 	analysis := fmt.Sprintf("Peak thread count: %d. Analysis includes thread count over time, "+
 		"CPU usage patterns for top 5 busiest threads, and memory usage distribution by user. "+
-		"Interactive charts provide detailed visualization of system performance metrics.", 
+		"Interactive charts provide detailed visualization of system performance metrics.",
 		peakThreadCount)
 
 	// Build comprehensive report structure
