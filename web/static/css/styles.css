@@ -72,6 +72,7 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
 }
 
 .file-actions button {
@@ -353,6 +354,46 @@ body {
     flex: 0 0 auto;
     max-height: 300px;
     overflow-y: auto;
+}
+
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.reports-header h4 {
+    margin: 0;
+}
+
+.no-reports-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.no-reports-container p {
+    margin-bottom: 20px;
+    color: #666;
+}
+
+/* Polling indicator */
+.polling-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #4caf50;
+    border-radius: 50%;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
 }
 
 .report-viewer {
