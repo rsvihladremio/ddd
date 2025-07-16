@@ -129,16 +129,70 @@ func (h *Handlers) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// Check if file already exists
 	existingFile, err := h.db.GetFileByHash(hash)
 	if err == nil {
-		// File already exists, return existing file info
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"file":    existingFile,
-			"message": "File already exists",
-		}); err != nil {
-			log.Printf("Error encoding JSON response: %v", err)
+		if !existingFile.Deleted {
+			// File already exists and is not deleted, return existing file info
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"file":    existingFile,
+				"message": "File already exists",
+			}); err != nil {
+				log.Printf("Error encoding JSON response: %v", err)
+			}
+			return
+		} else {
+			// File exists but is deleted - restore it
+			fileType := detector.DetectFileType(header.Filename, fileContent)
+			filePath := filepath.Join(h.cfg.UploadsDir, hash)
+
+			// Validate that the file path is within the uploads directory
+			if !strings.HasPrefix(filepath.Clean(filePath), filepath.Clean(h.cfg.UploadsDir)) {
+				http.Error(w, "Invalid file path", http.StatusBadRequest)
+				return
+			}
+
+			// Save file to disk
+			outFile, err := os.Create(filePath)
+			if err != nil {
+				http.Error(w, "Failed to save file", http.StatusInternalServerError)
+				return
+			}
+			defer func() {
+				if err := outFile.Close(); err != nil {
+					log.Printf("Error closing output file: %v", err)
+				}
+			}()
+
+			_, err = outFile.Write(fileContent)
+			if err != nil {
+				http.Error(w, "Failed to write file", http.StatusInternalServerError)
+				return
+			}
+
+			// Restore the file in database
+			err = h.db.RestoreFile(existingFile.ID, header.Filename, fileType, int64(len(fileContent)), filePath)
+			if err != nil {
+				http.Error(w, "Failed to restore file record", http.StatusInternalServerError)
+				return
+			}
+
+			// Get updated file record
+			restoredFile, err := h.db.GetFileByHash(hash)
+			if err != nil {
+				http.Error(w, "Failed to get restored file", http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"file":    restoredFile,
+				"message": "File restored successfully",
+			}); err != nil {
+				log.Printf("Error encoding JSON response: %v", err)
+			}
+			return
 		}
-		return
 	}
 
 	// Detect file type
@@ -271,7 +325,21 @@ func (h *Handlers) HandleFileOperations(w http.ResponseWriter, r *http.Request) 
 
 	switch r.Method {
 	case http.MethodDelete:
-		err := h.db.MarkFileDeleted(fileID)
+		// Get file info first to get the file path
+		file, err := h.getFileByID(fileID)
+		if err != nil {
+			http.Error(w, "File not found", http.StatusNotFound)
+			return
+		}
+
+		// Remove physical file from disk
+		if err := os.Remove(file.FilePath); err != nil && !os.IsNotExist(err) {
+			log.Printf("Warning: Failed to remove physical file %s: %v", file.FilePath, err)
+			// Continue with database update even if file removal fails
+		}
+
+		// Mark file as deleted in database
+		err = h.db.MarkFileDeleted(fileID)
 		if err != nil {
 			http.Error(w, "Failed to delete file", http.StatusInternalServerError)
 			return
@@ -280,7 +348,7 @@ func (h *Handlers) HandleFileOperations(w http.ResponseWriter, r *http.Request) 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"message": "File marked as deleted",
+			"message": "File deleted successfully",
 		}); err != nil {
 			log.Printf("Error encoding JSON response: %v", err)
 		}

@@ -328,8 +328,8 @@ func TestHandlers_HandleFileOperations(t *testing.T) {
 
 		handler.HandleFileOperations(w, req)
 
-		// The handler returns 200 even for non-existent files (updates 0 rows)
-		assert.Equal(t, http.StatusOK, w.Code)
+		// The handler now returns 404 for non-existent files
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("Invalid file ID", func(t *testing.T) {
@@ -482,6 +482,192 @@ func TestHandlers_HandleReportContent(t *testing.T) {
 }
 
 // Integration Tests - These replace the Playwright e2e tests with httptest-based tests
+
+func TestIntegration_DeletedFileReupload(t *testing.T) {
+	handler, db := setupTestHandler(t)
+
+	t.Run("Re-upload deleted file should restore it", func(t *testing.T) {
+		// Create test file content
+		testContent := testutil.SampleFiles["ttop"].Content
+
+		// Create multipart form for first upload
+		var buf1 bytes.Buffer
+		writer1 := multipart.NewWriter(&buf1)
+		part1, err := writer1.CreateFormFile("file", "test_reupload.txt")
+		require.NoError(t, err)
+
+		_, err = part1.Write(testContent)
+		require.NoError(t, err)
+		require.NoError(t, writer1.Close())
+
+		// First upload
+		req1 := httptest.NewRequest("POST", "/api/upload", &buf1)
+		req1.Header.Set("Content-Type", writer1.FormDataContentType())
+		w1 := httptest.NewRecorder()
+
+		handler.HandleUpload(w1, req1)
+
+		assert.Equal(t, http.StatusOK, w1.Code)
+
+		var uploadResponse1 map[string]interface{}
+		err = json.Unmarshal(w1.Body.Bytes(), &uploadResponse1)
+		require.NoError(t, err)
+		assert.True(t, uploadResponse1["success"].(bool))
+
+		// Extract file ID from first upload response
+		fileData1 := uploadResponse1["file"].(map[string]interface{})
+		fileID1 := int(fileData1["id"].(float64))
+
+		// Delete the file
+		deleteURL := fmt.Sprintf("/api/files/%d", fileID1)
+		deleteReq := httptest.NewRequest("DELETE", deleteURL, nil)
+		deleteW := httptest.NewRecorder()
+		handler.HandleFileOperations(deleteW, deleteReq)
+
+		assert.Equal(t, http.StatusOK, deleteW.Code)
+
+		// Create multipart form for second upload (same content)
+		var buf2 bytes.Buffer
+		writer2 := multipart.NewWriter(&buf2)
+		part2, err := writer2.CreateFormFile("file", "test_reupload.txt")
+		require.NoError(t, err)
+
+		_, err = part2.Write(testContent)
+		require.NoError(t, err)
+		require.NoError(t, writer2.Close())
+
+		// Second upload (should restore the file)
+		req2 := httptest.NewRequest("POST", "/api/upload", &buf2)
+		req2.Header.Set("Content-Type", writer2.FormDataContentType())
+		w2 := httptest.NewRecorder()
+
+		handler.HandleUpload(w2, req2)
+
+		if w2.Code != http.StatusOK {
+			t.Logf("Second upload failed with status %d, response: %s", w2.Code, w2.Body.String())
+		}
+		assert.Equal(t, http.StatusOK, w2.Code)
+
+		var uploadResponse2 map[string]interface{}
+		err = json.Unmarshal(w2.Body.Bytes(), &uploadResponse2)
+		require.NoError(t, err)
+		assert.True(t, uploadResponse2["success"].(bool))
+
+		// Extract file ID from second upload response
+		fileData2 := uploadResponse2["file"].(map[string]interface{})
+		fileID2 := int(fileData2["id"].(float64))
+
+		// The second upload should restore the same file record (same ID)
+		assert.Equal(t, fileID1, fileID2, "Second upload should restore the same file record")
+
+		// Verify the message indicates file restoration
+		assert.Equal(t, "File restored successfully", uploadResponse2["message"])
+
+		// Verify the file is no longer marked as deleted
+		restoredFile, err := db.GetFileByHash(fileData2["hash"].(string))
+		require.NoError(t, err)
+		assert.False(t, restoredFile.Deleted, "Restored file should not be marked as deleted")
+		assert.Nil(t, restoredFile.DeletedTime, "Restored file should have no deleted time")
+	})
+
+	_ = db // Suppress unused variable warning
+}
+
+func TestIntegration_ReportsPreservedOnFileDeletion(t *testing.T) {
+	handler, db := setupTestHandler(t)
+
+	t.Run("Reports should be preserved when file is deleted", func(t *testing.T) {
+		// Create test file content
+		testContent := testutil.SampleFiles["ttop"].Content
+
+		// Upload file
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+		part, err := writer.CreateFormFile("file", "test_reports_preserved.txt")
+		require.NoError(t, err)
+
+		_, err = part.Write(testContent)
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		req := httptest.NewRequest("POST", "/api/upload", &buf)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+
+		handler.HandleUpload(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var uploadResponse map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &uploadResponse)
+		require.NoError(t, err)
+
+		fileData := uploadResponse["file"].(map[string]interface{})
+		fileID := int(fileData["id"].(float64))
+
+		// Create a manual report
+		reportReq := httptest.NewRequest("POST", fmt.Sprintf("/api/reports/%d", fileID),
+			strings.NewReader(`{"report_type": "ttop"}`))
+		reportReq.Header.Set("Content-Type", "application/json")
+		reportW := httptest.NewRecorder()
+
+		handler.HandleReports(reportW, reportReq)
+		assert.Equal(t, http.StatusOK, reportW.Code)
+
+		// Get reports before deletion
+		getReportsReq := httptest.NewRequest("GET", fmt.Sprintf("/api/reports/%d", fileID), nil)
+		getReportsW := httptest.NewRecorder()
+		handler.HandleReports(getReportsW, getReportsReq)
+
+		assert.Equal(t, http.StatusOK, getReportsW.Code)
+		var reportsBeforeDelete map[string]interface{}
+		err = json.Unmarshal(getReportsW.Body.Bytes(), &reportsBeforeDelete)
+		require.NoError(t, err)
+
+		reportsBefore := reportsBeforeDelete["reports"].([]interface{})
+		assert.Greater(t, len(reportsBefore), 0, "Should have at least one report before deletion")
+
+		// Delete the file
+		deleteURL := fmt.Sprintf("/api/files/%d", fileID)
+		deleteReq := httptest.NewRequest("DELETE", deleteURL, nil)
+		deleteW := httptest.NewRecorder()
+		handler.HandleFileOperations(deleteW, deleteReq)
+
+		assert.Equal(t, http.StatusOK, deleteW.Code)
+
+		// Verify file is marked as deleted
+		deletedFile, err := db.GetFileByHash(fileData["hash"].(string))
+		require.NoError(t, err)
+		assert.True(t, deletedFile.Deleted, "File should be marked as deleted")
+
+		// Get reports after deletion - they should still exist
+		getReportsAfterReq := httptest.NewRequest("GET", fmt.Sprintf("/api/reports/%d", fileID), nil)
+		getReportsAfterW := httptest.NewRecorder()
+		handler.HandleReports(getReportsAfterW, getReportsAfterReq)
+
+		assert.Equal(t, http.StatusOK, getReportsAfterW.Code)
+		var reportsAfterDelete map[string]interface{}
+		err = json.Unmarshal(getReportsAfterW.Body.Bytes(), &reportsAfterDelete)
+		require.NoError(t, err)
+
+		reportsAfter := reportsAfterDelete["reports"].([]interface{})
+		assert.Equal(t, len(reportsBefore), len(reportsAfter), "Reports should be preserved after file deletion")
+
+		// Verify we can still access report content
+		if len(reportsAfter) > 0 {
+			report := reportsAfter[0].(map[string]interface{})
+			reportID := int(report["id"].(float64))
+
+			contentReq := httptest.NewRequest("GET", fmt.Sprintf("/api/reports/content/%d", reportID), nil)
+			contentW := httptest.NewRecorder()
+			handler.HandleReportContent(contentW, contentReq)
+
+			// Report content should still be accessible
+			assert.Equal(t, http.StatusOK, contentW.Code)
+		}
+	})
+
+	_ = db // Suppress unused variable warning
+}
 
 func TestIntegration_FileUploadWorkflow(t *testing.T) {
 	handler, db := setupTestHandler(t)
@@ -741,7 +927,7 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler.HandleFileOperations(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		// Test non-existent report
 		req = httptest.NewRequest("GET", "/api/reports/content/99999", nil)
