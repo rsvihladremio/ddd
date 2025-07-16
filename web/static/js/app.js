@@ -211,15 +211,11 @@ class DDDApp {
                 <td>
                     <div class="file-actions">
                         <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--colored"
-                                onclick="app.viewReports(${file.id})"
+                                onclick="app.viewReports(${file.id}, '${file.file_type}')"
                                 title="View Reports">
                             <i class="material-icons">assessment</i>
                         </button>
-                        <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--accent"
-                                onclick="app.createReport(${file.id}, '${file.file_type}')"
-                                title="Generate Report">
-                            <i class="material-icons">play_arrow</i>
-                        </button>
+
                         <button class="mdl-button mdl-js-button mdl-button--icon"
                                 onclick="app.deleteFile(${file.id})"
                                 title="Delete File">
@@ -244,33 +240,59 @@ class DDDApp {
         nextButton.disabled = filesCount < this.pageSize;
     }
 
-    async viewReports(fileId) {
+    async viewReports(fileId, fileType) {
         try {
             const response = await fetch(`/api/reports/${fileId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const result = await response.json();
 
             if (result.success) {
-                this.showReportsDialog(result.reports);
+                // Ensure reports is an array, default to empty array if not
+                const reports = Array.isArray(result.reports) ? result.reports : [];
+                this.showReportsDialog(reports, fileId, fileType);
             } else {
                 throw new Error(result.message || 'Failed to load reports');
             }
         } catch (error) {
             console.error('Error loading reports:', error);
+            // Show dialog with error state instead of just an alert
+            this.showReportsDialog([], fileId, fileType);
             alert('Failed to load reports: ' + error.message);
         }
     }
 
-    showReportsDialog(reports) {
+    showReportsDialog(reports, fileId, fileType) {
         const dialog = document.getElementById('report-dialog');
         const content = document.getElementById('report-content');
 
-        if (reports.length === 0) {
-            content.innerHTML = '<p>No reports found for this file.</p>';
+        // Handle null/undefined reports array
+        if (!reports || reports.length === 0) {
+            content.innerHTML = `
+                <div class="no-reports-container">
+                    <p>No reports found for this file.</p>
+                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                            onclick="app.createReport(${fileId}, '${fileType}')">
+                        <i class="material-icons">play_arrow</i>
+                        Generate New Report
+                    </button>
+                </div>
+            `;
         } else {
             content.innerHTML = `
                 <div class="reports-container">
                     <div class="reports-list">
-                        <h4>Reports</h4>
+                        <div class="reports-header">
+                            <h4>Reports</h4>
+                            <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                                    onclick="app.createReport(${fileId}, '${fileType}')">
+                                <i class="material-icons">play_arrow</i>
+                                Generate New Report
+                            </button>
+                        </div>
                         ${reports.map(report => `
                             <div class="report-item" data-report-id="${report.id}">
                                 <div class="report-info">
@@ -291,10 +313,6 @@ class DDDApp {
                                 </div>
                                 <div class="report-actions">
                                     ${report.status === 'completed' ? `
-                                        <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--colored"
-                                                onclick="app.viewReport(${report.id})" title="View Report">
-                                            <i class="material-icons">visibility</i>
-                                        </button>
                                         <button class="mdl-button mdl-js-button mdl-button--icon"
                                                 onclick="app.copyReportLink(${report.id})" title="Copy Report Link">
                                             <i class="material-icons">link</i>
@@ -312,16 +330,6 @@ class DDDApp {
                             </div>
                         `).join('')}
                     </div>
-                    <div class="report-viewer">
-                        <div class="report-viewer-header">
-                            Report Viewer
-                        </div>
-                        <div class="report-viewer-content">
-                            <div class="report-viewer-empty">
-                                Select a report to view its content
-                            </div>
-                        </div>
-                    </div>
                 </div>
             `;
         }
@@ -331,38 +339,7 @@ class DDDApp {
         dialog.showModal();
     }
 
-    async viewReport(reportId) {
-        const reportItems = document.querySelectorAll('.report-item');
-        const viewerHeader = document.querySelector('.report-viewer-header');
-        const viewerContent = document.querySelector('.report-viewer-content');
 
-        // Highlight selected report
-        reportItems.forEach(item => item.classList.remove('selected'));
-        const selectedItem = document.querySelector(`[data-report-id="${reportId}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('selected');
-        }
-
-        // Show loading state
-        viewerHeader.textContent = 'Loading Report...';
-        viewerContent.innerHTML = '<div class="report-viewer-empty">Loading report content...</div>';
-
-        try {
-            const response = await fetch(`/api/reports/content/${reportId}`);
-            const result = await response.json();
-
-            if (result.success) {
-                viewerHeader.textContent = 'Report Content';
-                viewerContent.innerHTML = this.renderReportData(result.report_data);
-            } else {
-                throw new Error(result.message || 'Failed to load report content');
-            }
-        } catch (error) {
-            console.error('Error loading report content:', error);
-            viewerHeader.textContent = 'Error Loading Report';
-            viewerContent.innerHTML = `<div class="error-message">Failed to load report: ${error.message}</div>`;
-        }
-    }
 
     copyReportLink(reportId) {
         const reportUrl = `${window.location.origin}/report/${reportId}`;
@@ -449,13 +426,7 @@ class DDDApp {
                     reportItem.remove();
                 }
 
-                // Clear viewer if this report was selected
-                if (reportItem && reportItem.classList.contains('selected')) {
-                    const viewerHeader = document.querySelector('.report-viewer-header');
-                    const viewerContent = document.querySelector('.report-viewer-content');
-                    viewerHeader.textContent = 'Report Viewer';
-                    viewerContent.innerHTML = '<div class="report-viewer-empty">Select a report to view its content</div>';
-                }
+
             } else {
                 throw new Error(result.message || 'Failed to delete report');
             }

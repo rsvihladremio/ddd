@@ -72,6 +72,7 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
 }
 
 .file-actions button {
@@ -353,6 +354,29 @@ body {
     flex: 0 0 auto;
     max-height: 300px;
     overflow-y: auto;
+}
+
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.reports-header h4 {
+    margin: 0;
+}
+
+.no-reports-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.no-reports-container p {
+    margin-bottom: 20px;
+    color: #666;
 }
 
 .report-viewer {

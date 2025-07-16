@@ -124,6 +124,50 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
                     title: { text: 'Threads by Name/ID CPU Usage Over Time' },
                     tooltip: { trigger: 'axis' },
                     legend: { data: [] },
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            saveAsImage: {
+                                show: true,
+                                title: 'Save as Image',
+                                type: 'png',
+                                name: 'thread_cpu_usage'
+                            },
+                            dataView: {
+                                show: true,
+                                title: 'Data View',
+                                readOnly: false
+                            },
+                            dataZoom: {
+                                show: true,
+                                title: { zoom: 'Zoom', back: 'Reset Zoom' }
+                            },
+                            restore: {
+                                show: true,
+                                title: 'Restore'
+                            },
+                            magicType: {
+                                show: true,
+                                type: ['line', 'bar'],
+                                title: { line: 'Line Chart', bar: 'Bar Chart' }
+                            }
+                        }
+                    },
+                    dataZoom: [
+                        {
+                            type: 'slider',
+                            show: true,
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        },
+                        {
+                            type: 'inside',
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        }
+                    ],
                     xAxis: { type: 'category', data: %s },
                     yAxis: { type: 'value', name: 'CPU Usage (%%)', min: 0 },
                     series: %s
@@ -134,8 +178,61 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
                 const memoryByTypeChart = echarts.init(document.getElementById('memoryByTypeChart'));
                 const memoryByTypeOption = {
                     title: { text: 'System Memory Usage Over Time' },
-                    tooltip: { trigger: 'axis' },
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function (params) {
+                            let result = params[0].name + '<br/>';
+                            params.forEach(function (item) {
+                                result += item.marker + ' ' + item.seriesName + ': ' + item.value + ' MiB<br/>';
+                            });
+                            return result;
+                        }
+                    },
                     legend: { data: [] },
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            saveAsImage: {
+                                show: true,
+                                title: 'Save as Image',
+                                type: 'png',
+                                name: 'system_memory_usage'
+                            },
+                            dataView: {
+                                show: true,
+                                title: 'Data View',
+                                readOnly: false
+                            },
+                            dataZoom: {
+                                show: true,
+                                title: { zoom: 'Zoom', back: 'Reset Zoom' }
+                            },
+                            restore: {
+                                show: true,
+                                title: 'Restore'
+                            },
+                            magicType: {
+                                show: true,
+                                type: ['line', 'bar', 'stack'],
+                                title: { line: 'Line Chart', bar: 'Bar Chart', stack: 'Stacked' }
+                            }
+                        }
+                    },
+                    dataZoom: [
+                        {
+                            type: 'slider',
+                            show: true,
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        },
+                        {
+                            type: 'inside',
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        }
+                    ],
                     xAxis: { type: 'category', data: %s },
                     yAxis: { type: 'value', name: 'Memory (MiB)', min: 0 },
                     series: %s
@@ -146,8 +243,61 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
                 const threadsByTypeChart = echarts.init(document.getElementById('threadsByTypeChart'));
                 const threadsByTypeOption = {
                     title: { text: 'Thread States Over Time' },
-                    tooltip: { trigger: 'axis' },
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function (params) {
+                            let result = params[0].name + '<br/>';
+                            params.forEach(function (item) {
+                                result += item.marker + ' ' + item.seriesName + ': ' + item.value + '<br/>';
+                            });
+                            return result;
+                        }
+                    },
                     legend: { data: [] },
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            saveAsImage: {
+                                show: true,
+                                title: 'Save as Image',
+                                type: 'png',
+                                name: 'thread_states'
+                            },
+                            dataView: {
+                                show: true,
+                                title: 'Data View',
+                                readOnly: false
+                            },
+                            dataZoom: {
+                                show: true,
+                                title: { zoom: 'Zoom', back: 'Reset Zoom' }
+                            },
+                            restore: {
+                                show: true,
+                                title: 'Restore'
+                            },
+                            magicType: {
+                                show: true,
+                                type: ['line', 'bar'],
+                                title: { line: 'Line Chart', bar: 'Bar Chart' }
+                            }
+                        }
+                    },
+                    dataZoom: [
+                        {
+                            type: 'slider',
+                            show: true,
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        },
+                        {
+                            type: 'inside',
+                            xAxisIndex: [0],
+                            start: 0,
+                            end: 100
+                        }
+                    ],
                     xAxis: { type: 'category', data: %s },
                     yAxis: { type: 'value', name: 'Thread Count', min: 0 },
                     series: %s
