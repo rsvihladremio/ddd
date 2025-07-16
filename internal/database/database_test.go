@@ -212,6 +212,52 @@ func TestDatabase_FileOperations(t *testing.T) {
 		}
 		assert.True(t, found, "Should find the old file")
 	})
+
+	t.Run("RestoreFile", func(t *testing.T) {
+		// Insert a test file
+		file := &File{
+			Hash:         "restore-test-hash",
+			OriginalName: "restore-test.txt",
+			FileType:     "ttop",
+			FileSize:     512,
+			UploadTime:   time.Now(),
+			FilePath:     "/uploads/restore-test-hash",
+		}
+
+		err := db.InsertFile(file)
+		require.NoError(t, err)
+
+		// Mark as deleted
+		err = db.MarkFileDeleted(file.ID)
+		require.NoError(t, err)
+
+		// Verify it's marked as deleted
+		deletedFile, err := db.GetFileByHash("restore-test-hash")
+		require.NoError(t, err)
+		assert.True(t, deletedFile.Deleted)
+		assert.NotNil(t, deletedFile.DeletedTime)
+
+		// Restore the file with new metadata
+		newOriginalName := "restored-file.txt"
+		newFileType := "iostat"
+		newFileSize := int64(1024)
+		newFilePath := "/uploads/restored-file-hash"
+
+		err = db.RestoreFile(file.ID, newOriginalName, newFileType, newFileSize, newFilePath)
+		require.NoError(t, err)
+
+		// Verify it's restored
+		restoredFile, err := db.GetFileByHash("restore-test-hash")
+		require.NoError(t, err)
+		assert.False(t, restoredFile.Deleted)
+		assert.Nil(t, restoredFile.DeletedTime)
+		assert.Equal(t, newOriginalName, restoredFile.OriginalName)
+		assert.Equal(t, newFileType, restoredFile.FileType)
+		assert.Equal(t, newFileSize, restoredFile.FileSize)
+		assert.Equal(t, newFilePath, restoredFile.FilePath)
+		// Upload time should be updated
+		assert.True(t, restoredFile.UploadTime.After(file.UploadTime))
+	})
 }
 
 func TestDatabase_ReportOperations(t *testing.T) {

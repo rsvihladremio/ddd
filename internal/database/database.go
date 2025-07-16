@@ -209,6 +209,23 @@ func (db *DB) MarkFileDeleted(fileID int) error {
 	return err
 }
 
+// RestoreFile restores a deleted file by updating its metadata and clearing deleted status
+func (db *DB) RestoreFile(fileID int, originalName, fileType string, fileSize int64, filePath string) error {
+	query := `
+		UPDATE files
+		SET deleted = FALSE,
+		    deleted_time = NULL,
+		    original_name = ?,
+		    file_type = ?,
+		    file_size = ?,
+		    file_path = ?,
+		    upload_time = ?
+		WHERE id = ?
+	`
+	_, err := db.Exec(query, originalName, fileType, fileSize, filePath, time.Now(), fileID)
+	return err
+}
+
 // InsertReport inserts a new report record
 func (db *DB) InsertReport(report *Report) error {
 	query := `

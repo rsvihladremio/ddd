@@ -177,7 +177,8 @@ class DDDApp {
         try {
             const params = new URLSearchParams({
                 limit: this.pageSize,
-                offset: (this.currentPage - 1) * this.pageSize
+                offset: (this.currentPage - 1) * this.pageSize,
+                include_deleted: 'true'
             });
 
             const response = await fetch(`/api/files?${params}`);
@@ -210,9 +211,10 @@ class DDDApp {
         emptyDiv.style.display = 'none';
 
         filesList.innerHTML = files.map(file => `
-            <tr>
+            <tr ${file.deleted ? 'class="deleted-file"' : ''}>
                 <td class="mdl-data-table__cell--non-numeric">
                     ${this.escapeHtml(file.original_name)}
+                    ${file.deleted ? '<span class="deleted-indicator">(File Removed)</span>' : ''}
                 </td>
                 <td>
                     <span class="file-type-badge file-type-${file.file_type}">
@@ -224,16 +226,18 @@ class DDDApp {
                 <td>
                     <div class="file-actions">
                         <button class="mdl-button mdl-js-button mdl-button--icon mdl-button--colored"
-                                onclick="app.viewReports(${file.id}, '${file.file_type}')"
+                                onclick="app.viewReports(${file.id}, '${file.file_type}', ${file.deleted})"
                                 title="View Reports">
                             <i class="material-icons">assessment</i>
                         </button>
 
-                        <button class="mdl-button mdl-js-button mdl-button--icon"
-                                onclick="app.deleteFile(${file.id})"
-                                title="Delete File">
-                            <i class="material-icons">delete</i>
-                        </button>
+                        ${!file.deleted ? `
+                            <button class="mdl-button mdl-js-button mdl-button--icon"
+                                    onclick="app.deleteFile(${file.id})"
+                                    title="Delete File">
+                                <i class="material-icons">delete</i>
+                            </button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -253,7 +257,7 @@ class DDDApp {
         nextButton.disabled = filesCount < this.pageSize;
     }
 
-    async viewReports(fileId, fileType) {
+    async viewReports(fileId, fileType, isDeleted = false) {
         try {
             const response = await fetch(`/api/reports/${fileId}`);
 
@@ -266,34 +270,37 @@ class DDDApp {
             if (result.success) {
                 // Ensure reports is an array, default to empty array if not
                 const reports = Array.isArray(result.reports) ? result.reports : [];
-                this.showReportsDialog(reports, fileId, fileType);
+                this.showReportsDialog(reports, fileId, fileType, isDeleted);
             } else {
                 throw new Error(result.message || 'Failed to load reports');
             }
         } catch (error) {
             console.error('Error loading reports:', error);
             // Show dialog with error state instead of just an alert
-            this.showReportsDialog([], fileId, fileType);
+            this.showReportsDialog([], fileId, fileType, isDeleted);
             alert('Failed to load reports: ' + error.message);
         }
     }
 
-    showReportsDialog(reports, fileId, fileType) {
+    showReportsDialog(reports, fileId, fileType, isDeleted = false) {
         const dialog = document.getElementById('report-dialog');
 
         // Store current file info for polling
         this.currentFileId = fileId;
         this.currentFileType = fileType;
+        this.currentFileDeleted = isDeleted;
 
         // Render the reports content
-        this.renderReportsContent(reports, fileId, fileType);
+        this.renderReportsContent(reports, fileId, fileType, isDeleted);
 
         // Re-initialize MDL components
         componentHandler.upgradeDom();
         dialog.showModal();
 
-        // Start polling for report status updates
-        this.startPolling();
+        // Start polling for report status updates (only if file is not deleted)
+        if (!isDeleted) {
+            this.startPolling();
+        }
     }
 
 
@@ -556,10 +563,10 @@ class DDDApp {
         }
 
         // Re-render the entire dialog content with updated reports
-        this.renderReportsContent(reports, this.currentFileId, this.currentFileType);
+        this.renderReportsContent(reports, this.currentFileId, this.currentFileType, this.currentFileDeleted);
     }
 
-    renderReportsContent(reports, fileId, fileType) {
+    renderReportsContent(reports, fileId, fileType, isDeleted = false) {
         const content = document.getElementById('report-content');
 
         // Check if there are any active reports (pending or running)
@@ -568,27 +575,45 @@ class DDDApp {
         );
 
         if (!reports || reports.length === 0) {
-            content.innerHTML = `
-                <div class="no-reports-container">
-                    <p>No reports found for this file.</p>
-                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                            onclick="app.createReport(${fileId}, '${fileType}')">
-                        <i class="material-icons">play_arrow</i>
-                        Generate New Report
-                    </button>
-                </div>
-            `;
+            if (isDeleted) {
+                content.innerHTML = `
+                    <div class="no-reports-container">
+                        <p>No reports found for this file.</p>
+                        <div class="deleted-file-message">
+                            <p><strong>File has been removed from disk.</strong></p>
+                            <p>To generate new reports, please upload the file again.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div class="no-reports-container">
+                        <p>No reports found for this file.</p>
+                        <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                                onclick="app.createReport(${fileId}, '${fileType}')">
+                            <i class="material-icons">play_arrow</i>
+                            Generate New Report
+                        </button>
+                    </div>
+                `;
+            }
         } else {
             content.innerHTML = `
                 <div class="reports-container">
                     <div class="reports-list">
                         <div class="reports-header">
                             <h4>Reports ${hasActiveReports ? '<span class="polling-indicator" title="Auto-refreshing every 2 seconds"></span>' : ''}</h4>
-                            <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                                    onclick="app.createReport(${fileId}, '${fileType}')">
-                                <i class="material-icons">play_arrow</i>
-                                Generate New Report
-                            </button>
+                            ${!isDeleted ? `
+                                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                                        onclick="app.createReport(${fileId}, '${fileType}')">
+                                    <i class="material-icons">play_arrow</i>
+                                    Generate New Report
+                                </button>
+                            ` : `
+                                <div class="deleted-file-message">
+                                    <p><strong>File removed from disk.</strong> Upload file again to generate new reports.</p>
+                                </div>
+                            `}
                         </div>
                         ${reports.map(report => `
                             <div class="report-item" data-report-id="${report.id}">
