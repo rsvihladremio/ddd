@@ -40,10 +40,23 @@ type ThreadCounts struct {
 	Zombie   int `json:"zombie"`   // Number of zombie threads
 }
 
+// SystemMemory represents system memory information from "MiB Mem:" and "MiB Swap:" lines
+type SystemMemory struct {
+	MemTotal     float64 `json:"mem_total"`      // Total memory in MiB
+	MemFree      float64 `json:"mem_free"`       // Free memory in MiB
+	MemUsed      float64 `json:"mem_used"`       // Used memory in MiB
+	MemBuffCache float64 `json:"mem_buff_cache"` // Buffer/cache memory in MiB
+	SwapTotal    float64 `json:"swap_total"`     // Total swap in MiB
+	SwapFree     float64 `json:"swap_free"`      // Free swap in MiB
+	SwapUsed     float64 `json:"swap_used"`      // Used swap in MiB
+	MemAvail     float64 `json:"mem_avail"`      // Available memory in MiB
+}
+
 // TTopSnapshot represents a single snapshot of thread information with timestamp
 type TTopSnapshot struct {
 	Timestamp    time.Time     `json:"timestamp"`     // When this snapshot was taken
 	ThreadCounts *ThreadCounts `json:"thread_counts"` // Global thread counts from "Threads:" line
+	SystemMemory *SystemMemory `json:"system_memory"` // System memory information from "MiB Mem:" and "MiB Swap:" lines
 	Threads      []ThreadInfo  `json:"threads"`       // List of threads in this snapshot
 }
 
@@ -90,6 +103,7 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 			currentSnapshot = &TTopSnapshot{
 				Timestamp:    timestamp,
 				ThreadCounts: nil, // Will be populated when we find the "Threads:" line
+				SystemMemory: nil, // Will be populated when we find the "MiB Mem:" and "MiB Swap:" lines
 				Threads:      []ThreadInfo{},
 			}
 			continue
@@ -100,6 +114,30 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 			threadCounts, err := parseThreadCountsLine(line)
 			if err == nil {
 				currentSnapshot.ThreadCounts = threadCounts
+			}
+			continue
+		}
+
+		// Check if this line contains memory information
+		if strings.HasPrefix(line, "MiB Mem") && currentSnapshot != nil {
+			if currentSnapshot.SystemMemory == nil {
+				currentSnapshot.SystemMemory = &SystemMemory{}
+			}
+			err := parseMemoryLine(line, currentSnapshot.SystemMemory)
+			if err != nil {
+				// Log error but continue parsing
+			}
+			continue
+		}
+
+		// Check if this line contains swap information
+		if strings.HasPrefix(line, "MiB Swap") && currentSnapshot != nil {
+			if currentSnapshot.SystemMemory == nil {
+				currentSnapshot.SystemMemory = &SystemMemory{}
+			}
+			err := parseSwapLine(line, currentSnapshot.SystemMemory)
+			if err != nil {
+				// Log error but continue parsing
 			}
 			continue
 		}
@@ -193,6 +231,117 @@ func parseThreadCountsLine(line string) (*ThreadCounts, error) {
 	}
 
 	return counts, nil
+}
+
+// parseMemoryLine parses a line like "MiB Mem :  16008.2 total,  10953.7 free,   3713.5 used,   1341.1 buff/cache"
+func parseMemoryLine(line string, memory *SystemMemory) error {
+	// Remove "MiB Mem :" prefix
+	line = strings.TrimPrefix(line, "MiB Mem")
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, ":") {
+		line = strings.TrimPrefix(line, ":")
+		line = strings.TrimSpace(line)
+	}
+
+	// Split by commas to get individual memory values
+	parts := strings.Split(line, ",")
+	if len(parts) != 4 {
+		return fmt.Errorf("expected 4 memory parts, got %d", len(parts))
+	}
+
+	// Parse each part
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		fields := strings.Fields(part)
+		if len(fields) < 2 {
+			continue
+		}
+
+		value, err := strconv.ParseFloat(fields[0], 64)
+		if err != nil {
+			continue
+		}
+
+		// Determine which type based on the second field
+		switch fields[1] {
+		case "total":
+			memory.MemTotal = value
+		case "free":
+			memory.MemFree = value
+		case "used":
+			memory.MemUsed = value
+		case "buff/cache":
+			memory.MemBuffCache = value
+		}
+	}
+
+	return nil
+}
+
+// parseSwapLine parses a line like "MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem"
+func parseSwapLine(line string, memory *SystemMemory) error {
+	// Remove "MiB Swap:" prefix
+	line = strings.TrimPrefix(line, "MiB Swap:")
+	line = strings.TrimSpace(line)
+
+	// Look for "avail Mem" to separate swap info from available memory
+	availIndex := strings.Index(line, "avail Mem")
+	var swapPart string
+
+	if availIndex != -1 {
+		// Find the start of the available memory value (work backwards from "avail Mem")
+		beforeAvail := line[:availIndex]
+		// Find the last space before "avail" to get the number
+		fields := strings.Fields(beforeAvail)
+		if len(fields) > 0 {
+			// The last field should be the available memory value
+			availValue := fields[len(fields)-1]
+			if value, err := strconv.ParseFloat(availValue, 64); err == nil {
+				memory.MemAvail = value
+			}
+			// Remove the available memory part to get just the swap info
+			swapPart = strings.TrimSpace(strings.TrimSuffix(beforeAvail, availValue))
+		}
+	} else {
+		swapPart = line
+	}
+
+	// Remove trailing period if present
+	swapPart = strings.TrimSuffix(swapPart, ".")
+	swapPart = strings.TrimSpace(swapPart)
+
+	// Parse swap information
+	parts := strings.Split(swapPart, ",")
+	if len(parts) != 3 {
+		return fmt.Errorf("expected 3 swap parts, got %d", len(parts))
+	}
+
+	// Parse each swap part
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		fields := strings.Fields(part)
+		if len(fields) < 2 {
+			continue
+		}
+
+		value, err := strconv.ParseFloat(fields[0], 64)
+		if err != nil {
+			continue
+		}
+
+		// Determine which type based on the second field (remove trailing punctuation)
+		fieldType := strings.TrimSuffix(fields[1], ".")
+		switch fieldType {
+		case "total":
+			memory.SwapTotal = value
+		case "free":
+			memory.SwapFree = value
+		case "used":
+			memory.SwapUsed = value
+		}
+	}
+
+	return nil
 }
 
 // parseThreadLine parses a line that represents thread information

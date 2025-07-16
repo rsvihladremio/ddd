@@ -69,6 +69,17 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		assert.Equal(t, 0, snapshot1.ThreadCounts.Stopped)
 		assert.Equal(t, 0, snapshot1.ThreadCounts.Zombie)
 
+		// Check system memory
+		require.NotNil(t, snapshot1.SystemMemory)
+		assert.Equal(t, 16008.2, snapshot1.SystemMemory.MemTotal)
+		assert.Equal(t, 10953.7, snapshot1.SystemMemory.MemFree)
+		assert.Equal(t, 3713.5, snapshot1.SystemMemory.MemUsed)
+		assert.Equal(t, 1341.1, snapshot1.SystemMemory.MemBuffCache)
+		assert.Equal(t, 0.0, snapshot1.SystemMemory.SwapTotal)
+		assert.Equal(t, 0.0, snapshot1.SystemMemory.SwapFree)
+		assert.Equal(t, 0.0, snapshot1.SystemMemory.SwapUsed)
+		assert.Equal(t, 12032.0, snapshot1.SystemMemory.MemAvail)
+
 		// Check first thread in first snapshot
 		thread1 := snapshot1.Threads[0]
 		assert.Equal(t, 997, thread1.PID)
@@ -91,6 +102,17 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		assert.Equal(t, 260, snapshot2.ThreadCounts.Sleeping)
 		assert.Equal(t, 0, snapshot2.ThreadCounts.Stopped)
 		assert.Equal(t, 0, snapshot2.ThreadCounts.Zombie)
+
+		// Check system memory for second snapshot (should be same as first)
+		require.NotNil(t, snapshot2.SystemMemory)
+		assert.Equal(t, 16008.2, snapshot2.SystemMemory.MemTotal)
+		assert.Equal(t, 10953.7, snapshot2.SystemMemory.MemFree)
+		assert.Equal(t, 3713.5, snapshot2.SystemMemory.MemUsed)
+		assert.Equal(t, 1341.1, snapshot2.SystemMemory.MemBuffCache)
+		assert.Equal(t, 0.0, snapshot2.SystemMemory.SwapTotal)
+		assert.Equal(t, 0.0, snapshot2.SystemMemory.SwapFree)
+		assert.Equal(t, 0.0, snapshot2.SystemMemory.SwapUsed)
+		assert.Equal(t, 12032.0, snapshot2.SystemMemory.MemAvail)
 
 		// Check first thread in second snapshot
 		thread2 := snapshot2.Threads[0]
@@ -254,6 +276,7 @@ func TestTTopReportDataStructure(t *testing.T) {
 		snapshot := TTopSnapshot{
 			Timestamp:    timestamp,
 			ThreadCounts: &ThreadCounts{Total: 1, Running: 1, Sleeping: 0, Stopped: 0, Zombie: 0},
+			SystemMemory: &SystemMemory{MemTotal: 1000.0, MemFree: 500.0, MemUsed: 400.0, MemBuffCache: 100.0, SwapTotal: 0.0, SwapFree: 0.0, SwapUsed: 0.0, MemAvail: 600.0},
 			Threads:      []ThreadInfo{thread},
 		}
 
@@ -304,5 +327,64 @@ func TestParseThreadCountsLine(t *testing.T) {
 		counts, err := parseThreadCountsLine(line)
 		assert.Error(t, err)
 		assert.Nil(t, counts)
+	})
+}
+
+func TestParseMemoryLine(t *testing.T) {
+	t.Run("Parse valid memory line", func(t *testing.T) {
+		line := "MiB Mem :  16008.2 total,  10953.7 free,   3713.5 used,   1341.1 buff/cache"
+		memory := &SystemMemory{}
+
+		err := parseMemoryLine(line, memory)
+		require.NoError(t, err)
+
+		assert.Equal(t, 16008.2, memory.MemTotal)
+		assert.Equal(t, 10953.7, memory.MemFree)
+		assert.Equal(t, 3713.5, memory.MemUsed)
+		assert.Equal(t, 1341.1, memory.MemBuffCache)
+	})
+
+	t.Run("Parse malformed memory line", func(t *testing.T) {
+		line := "MiB Mem : invalid format"
+		memory := &SystemMemory{}
+
+		err := parseMemoryLine(line, memory)
+		assert.Error(t, err)
+	})
+}
+
+func TestParseSwapLine(t *testing.T) {
+	t.Run("Parse valid swap line", func(t *testing.T) {
+		line := "MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem"
+		memory := &SystemMemory{}
+
+		err := parseSwapLine(line, memory)
+		require.NoError(t, err)
+
+		assert.Equal(t, 0.0, memory.SwapTotal)
+		assert.Equal(t, 0.0, memory.SwapFree)
+		assert.Equal(t, 0.0, memory.SwapUsed)
+		assert.Equal(t, 12032.0, memory.MemAvail)
+	})
+
+	t.Run("Parse swap line with non-zero values", func(t *testing.T) {
+		line := "MiB Swap:   1024.0 total,    512.0 free,    512.0 used.  8000.0 avail Mem"
+		memory := &SystemMemory{}
+
+		err := parseSwapLine(line, memory)
+		require.NoError(t, err)
+
+		assert.Equal(t, 1024.0, memory.SwapTotal)
+		assert.Equal(t, 512.0, memory.SwapFree)
+		assert.Equal(t, 512.0, memory.SwapUsed)
+		assert.Equal(t, 8000.0, memory.MemAvail)
+	})
+
+	t.Run("Parse malformed swap line", func(t *testing.T) {
+		line := "MiB Swap: invalid format"
+		memory := &SystemMemory{}
+
+		err := parseSwapLine(line, memory)
+		assert.Error(t, err)
 	})
 }

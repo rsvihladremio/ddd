@@ -423,7 +423,7 @@ Threads: 100 total,   2 running, 98 sleeping,   0 stopped,   0 zombie
 
 		// Verify chart containers
 		assert.Contains(t, htmlReport, "Threads by Name/ID CPU Usage Over Time")
-		assert.Contains(t, htmlReport, "Memory Usage by Memory Type Over Time")
+		assert.Contains(t, htmlReport, "System Memory Usage Over Time")
 		assert.Contains(t, htmlReport, "Thread States Over Time")
 
 		// Verify ECharts is included

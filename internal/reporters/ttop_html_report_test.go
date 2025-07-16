@@ -36,6 +36,16 @@ func TestGenerateTTopHTML(t *testing.T) {
 						Stopped:  0,
 						Zombie:   0,
 					},
+					SystemMemory: &SystemMemory{
+						MemTotal:     8000.0,
+						MemFree:      4000.0,
+						MemUsed:      3000.0,
+						MemBuffCache: 1000.0,
+						SwapTotal:    0.0,
+						SwapFree:     0.0,
+						SwapUsed:     0.0,
+						MemAvail:     5000.0,
+					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 25.5, MEM: 10.2, Command: "java"},
 						{PID: 5678, User: "root", CPU: 15.0, MEM: 5.1, Command: "compiler"},
@@ -49,6 +59,16 @@ func TestGenerateTTopHTML(t *testing.T) {
 						Sleeping: 102,
 						Stopped:  0,
 						Zombie:   0,
+					},
+					SystemMemory: &SystemMemory{
+						MemTotal:     8000.0,
+						MemFree:      3500.0,
+						MemUsed:      3500.0,
+						MemBuffCache: 1000.0,
+						SwapTotal:    0.0,
+						SwapFree:     0.0,
+						SwapUsed:     0.0,
+						MemAvail:     4500.0,
 					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 30.0, MEM: 12.0, Command: "java"},
@@ -74,7 +94,7 @@ func TestGenerateTTopHTML(t *testing.T) {
 
 		// Verify chart titles
 		assert.Contains(t, html, "Threads by Name/ID CPU Usage Over Time")
-		assert.Contains(t, html, "Memory Usage by Memory Type Over Time")
+		assert.Contains(t, html, "System Memory Usage Over Time")
 		assert.Contains(t, html, "Thread States Over Time")
 
 		// Verify ECharts initialization
@@ -101,6 +121,16 @@ func TestGenerateTTopHTML(t *testing.T) {
 						Sleeping: 49,
 						Stopped:  0,
 						Zombie:   0,
+					},
+					SystemMemory: &SystemMemory{
+						MemTotal:     4000.0,
+						MemFree:      2000.0,
+						MemUsed:      1500.0,
+						MemBuffCache: 500.0,
+						SwapTotal:    0.0,
+						SwapFree:     0.0,
+						SwapUsed:     0.0,
+						MemAvail:     2500.0,
 					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 25.5, MEM: 10.2, Command: "java"},
@@ -171,10 +201,15 @@ func TestExtractMemoryTypeLegendData(t *testing.T) {
 		data := &TTopReportData{
 			Snapshots: []TTopSnapshot{
 				{
-					Threads: []ThreadInfo{
-						{MEM: 3.0},  // Low memory
-						{MEM: 10.0}, // Medium memory
-						{MEM: 20.0}, // High memory
+					SystemMemory: &SystemMemory{
+						MemTotal:     8000.0,
+						MemFree:      4000.0,
+						MemUsed:      3000.0,
+						MemBuffCache: 1000.0,
+						SwapTotal:    1024.0,
+						SwapFree:     512.0,
+						SwapUsed:     512.0,
+						MemAvail:     5000.0,
 					},
 				},
 			},
@@ -182,9 +217,10 @@ func TestExtractMemoryTypeLegendData(t *testing.T) {
 
 		result := extractMemoryTypeLegendData(data)
 		assert.NotEmpty(t, result)
-		assert.Contains(t, result, "Low Memory (<5%)")
-		assert.Contains(t, result, "Medium Memory (5-15%)")
-		assert.Contains(t, result, "High Memory (>15%)")
+		assert.Contains(t, result, "Memory Used (MiB)")
+		assert.Contains(t, result, "Buffer/Cache (MiB)")
+		assert.Contains(t, result, "Memory Free (MiB)")
+		assert.Contains(t, result, "Swap Used (MiB)")
 	})
 }
 
@@ -193,10 +229,15 @@ func TestExtractMemoryTypeSeriesData(t *testing.T) {
 		data := &TTopReportData{
 			Snapshots: []TTopSnapshot{
 				{
-					Threads: []ThreadInfo{
-						{MEM: 3.0},  // Low memory
-						{MEM: 10.0}, // Medium memory
-						{MEM: 20.0}, // High memory
+					SystemMemory: &SystemMemory{
+						MemTotal:     8000.0,
+						MemFree:      4000.0,
+						MemUsed:      3000.0,
+						MemBuffCache: 1000.0,
+						SwapTotal:    1024.0,
+						SwapFree:     512.0,
+						SwapUsed:     512.0,
+						MemAvail:     5000.0,
 					},
 				},
 			},
@@ -204,12 +245,14 @@ func TestExtractMemoryTypeSeriesData(t *testing.T) {
 
 		result := extractMemoryTypeSeriesData(data)
 		assert.NotEmpty(t, result)
-		assert.Contains(t, result, "Low Memory (<5%)")
-		assert.Contains(t, result, "Medium Memory (5-15%)")
-		assert.Contains(t, result, "High Memory (>15%)")
-		assert.Contains(t, result, "data: [1]") // One thread in low memory
-		assert.Contains(t, result, "data: [1]") // One thread in medium memory
-		assert.Contains(t, result, "data: [1]") // One thread in high memory
+		assert.Contains(t, result, "Memory Used (MiB)")
+		assert.Contains(t, result, "Buffer/Cache (MiB)")
+		assert.Contains(t, result, "Memory Free (MiB)")
+		assert.Contains(t, result, "Swap Used (MiB)")
+		assert.Contains(t, result, "data: [3000.0]") // Memory used
+		assert.Contains(t, result, "data: [1000.0]") // Buffer/cache
+		assert.Contains(t, result, "data: [4000.0]") // Memory free
+		assert.Contains(t, result, "data: [512.0]")  // Swap used
 	})
 }
 

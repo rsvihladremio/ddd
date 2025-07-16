@@ -22,7 +22,7 @@ import (
 
 // GenerateTTopHTML generates a self-contained HTML report with three charts:
 // 1. Threads by Name/ID CPU Usage Over Time
-// 2. Memory Usage by Memory Type Over Time
+// 2. System Memory Usage Over Time (using global memory data from ttop header)
 // 3. Thread States Over Time (using global thread counts from ttop header)
 func GenerateTTopHTML(data *TTopReportData) (string, error) {
 	if data == nil || len(data.Snapshots) == 0 {
@@ -133,11 +133,11 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
                 // Memory by Type Chart
                 const memoryByTypeChart = echarts.init(document.getElementById('memoryByTypeChart'));
                 const memoryByTypeOption = {
-                    title: { text: 'Memory Usage by Memory Type Over Time' },
+                    title: { text: 'System Memory Usage Over Time' },
                     tooltip: { trigger: 'axis' },
                     legend: { data: [] },
                     xAxis: { type: 'category', data: %s },
-                    yAxis: { type: 'value', name: 'Thread Count', min: 0 },
+                    yAxis: { type: 'value', name: 'Memory (MiB)', min: 0 },
                     series: %s
                 };
                 memoryByTypeChart.setOption(memoryByTypeOption);
@@ -278,83 +278,96 @@ func extractCPULegendData(data *TTopReportData) []string {
 	return result
 }
 
-// extractMemoryTypeLegendData extracts legend data for memory type chart
+// extractMemoryTypeLegendData extracts legend data for memory type chart using system memory data
 func extractMemoryTypeLegendData(data *TTopReportData) []string {
-	// Check if we have threads with different memory usage levels
-	hasLow, hasMedium, hasHigh := false, false, false
+	// Check what types of memory data we have from the system memory information
+	hasBuffCache, hasSwapUsed := false, false
 
 	for _, snapshot := range data.Snapshots {
-		for _, thread := range snapshot.Threads {
-			if thread.MEM < 5.0 {
-				hasLow = true
-			} else if thread.MEM <= 15.0 {
-				hasMedium = true
-			} else {
-				hasHigh = true
+		if snapshot.SystemMemory != nil {
+			if snapshot.SystemMemory.MemBuffCache > 0 {
+				hasBuffCache = true
+			}
+			if snapshot.SystemMemory.SwapUsed > 0 {
+				hasSwapUsed = true
 			}
 		}
 	}
 
 	var result []string
-	if hasLow {
-		result = append(result, "Low Memory (<5%)")
+	// Always include basic memory types
+	result = append(result, "Memory Used (MiB)")
+
+	if hasBuffCache {
+		result = append(result, "Buffer/Cache (MiB)")
 	}
-	if hasMedium {
-		result = append(result, "Medium Memory (5-15%)")
+
+	result = append(result, "Memory Free (MiB)")
+
+	if hasSwapUsed {
+		result = append(result, "Swap Used (MiB)")
 	}
-	if hasHigh {
-		result = append(result, "High Memory (>15%)")
-	}
+
 	return result
 }
 
-// extractMemoryTypeSeriesData extracts series data for memory type chart
+// extractMemoryTypeSeriesData extracts series data for memory type chart using system memory information
 func extractMemoryTypeSeriesData(data *TTopReportData) string {
-	// Count threads by memory type for each snapshot
-	var lowMemorySeries, mediumMemorySeries, highMemorySeries []string
+	// Use system memory data from the "MiB Mem:" and "MiB Swap:" lines
+	var memUsedSeries, memFreeSeries, memBuffCacheSeries, swapUsedSeries []string
 
 	for _, snapshot := range data.Snapshots {
-		lowCount, mediumCount, highCount := 0, 0, 0
-
-		for _, thread := range snapshot.Threads {
-			if thread.MEM < 5.0 {
-				lowCount++
-			} else if thread.MEM <= 15.0 {
-				mediumCount++
-			} else {
-				highCount++
-			}
+		// Use system memory data if available, otherwise default to 0
+		if snapshot.SystemMemory != nil {
+			memUsedSeries = append(memUsedSeries, fmt.Sprintf("%.1f", snapshot.SystemMemory.MemUsed))
+			memFreeSeries = append(memFreeSeries, fmt.Sprintf("%.1f", snapshot.SystemMemory.MemFree))
+			memBuffCacheSeries = append(memBuffCacheSeries, fmt.Sprintf("%.1f", snapshot.SystemMemory.MemBuffCache))
+			swapUsedSeries = append(swapUsedSeries, fmt.Sprintf("%.1f", snapshot.SystemMemory.SwapUsed))
+		} else {
+			// Fallback to 0 if system memory data is not available
+			memUsedSeries = append(memUsedSeries, "0.0")
+			memFreeSeries = append(memFreeSeries, "0.0")
+			memBuffCacheSeries = append(memBuffCacheSeries, "0.0")
+			swapUsedSeries = append(swapUsedSeries, "0.0")
 		}
-
-		lowMemorySeries = append(lowMemorySeries, fmt.Sprintf("%d", lowCount))
-		mediumMemorySeries = append(mediumMemorySeries, fmt.Sprintf("%d", mediumCount))
-		highMemorySeries = append(highMemorySeries, fmt.Sprintf("%d", highCount))
 	}
 
 	var datasets []string
 
-	if len(lowMemorySeries) > 0 {
+	// Always include memory used
+	datasets = append(datasets, fmt.Sprintf(`{
+		name: "Memory Used (MiB)",
+		type: "bar",
+		stack: "memory",
+		data: [%s]
+	}`, strings.Join(memUsedSeries, ", ")))
+
+	// Include buffer/cache if there are any non-zero values
+	if hasNonZeroFloatValues(memBuffCacheSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "Low Memory (<5%%)",
+			name: "Buffer/Cache (MiB)",
 			type: "bar",
+			stack: "memory",
 			data: [%s]
-		}`, strings.Join(lowMemorySeries, ", ")))
+		}`, strings.Join(memBuffCacheSeries, ", ")))
 	}
 
-	if len(mediumMemorySeries) > 0 {
-		datasets = append(datasets, fmt.Sprintf(`{
-			name: "Medium Memory (5-15%%)",
-			type: "bar",
-			data: [%s]
-		}`, strings.Join(mediumMemorySeries, ", ")))
-	}
+	// Include memory free
+	datasets = append(datasets, fmt.Sprintf(`{
+		name: "Memory Free (MiB)",
+		type: "bar",
+		stack: "memory",
+		data: [%s]
+	}`, strings.Join(memFreeSeries, ", ")))
 
-	if len(highMemorySeries) > 0 {
+	// Include swap used if there are any non-zero values
+	if hasNonZeroFloatValues(swapUsedSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "High Memory (>15%%)",
+			name: "Swap Used (MiB)",
 			type: "bar",
+			stack: "swap",
 			data: [%s]
-		}`, strings.Join(highMemorySeries, ", ")))
+		}`, strings.Join(swapUsedSeries, ", ")))
 	}
 
 	return fmt.Sprintf("[%s]", strings.Join(datasets, ", "))
@@ -476,6 +489,16 @@ func extractThreadTypeSeriesData(data *TTopReportData) string {
 func hasNonZeroValues(series []string) bool {
 	for _, value := range series {
 		if value != "0" {
+			return true
+		}
+	}
+	return false
+}
+
+// hasNonZeroFloatValues checks if a series contains any non-zero float values
+func hasNonZeroFloatValues(series []string) bool {
+	for _, value := range series {
+		if value != "0.0" && value != "0" {
 			return true
 		}
 	}
