@@ -348,7 +348,6 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		assert.NotEmpty(t, htmlReport)
 
 		// Check that HTML contains expected chart containers
-		assert.Contains(t, htmlReport, `id="threadCountChart"`)
 		assert.Contains(t, htmlReport, `id="threadByCpuChart"`)
 		assert.Contains(t, htmlReport, `id="memoryByTypeChart"`)
 		assert.Contains(t, htmlReport, `id="threadsByTypeChart"`)
@@ -423,11 +422,11 @@ Threads: 100 total,   2 running, 98 sleeping,   0 stopped,   0 zombie
 		assert.Contains(t, htmlReport, "</html>")
 
 		// Verify chart containers
-		assert.Contains(t, htmlReport, "Thread Count Over Time")
 		assert.Contains(t, htmlReport, "Threads by Name/ID CPU Usage Over Time")
 		assert.Contains(t, htmlReport, "Memory Usage by Memory Type Over Time")
+		assert.Contains(t, htmlReport, "Thread States Over Time")
 
-		// Verify ECharts CDN is included
+		// Verify ECharts is included
 		assert.Contains(t, htmlReport, "echarts.min.js")
 
 		// Verify summary information

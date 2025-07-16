@@ -29,6 +29,13 @@ func TestGenerateTTopHTML(t *testing.T) {
 			Snapshots: []TTopSnapshot{
 				{
 					Timestamp: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+					ThreadCounts: &ThreadCounts{
+						Total:    100,
+						Running:  2,
+						Sleeping: 98,
+						Stopped:  0,
+						Zombie:   0,
+					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 25.5, MEM: 10.2, Command: "java"},
 						{PID: 5678, User: "root", CPU: 15.0, MEM: 5.1, Command: "compiler"},
@@ -36,6 +43,13 @@ func TestGenerateTTopHTML(t *testing.T) {
 				},
 				{
 					Timestamp: time.Date(2024, 1, 1, 12, 0, 1, 0, time.UTC),
+					ThreadCounts: &ThreadCounts{
+						Total:    105,
+						Running:  3,
+						Sleeping: 102,
+						Stopped:  0,
+						Zombie:   0,
+					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 30.0, MEM: 12.0, Command: "java"},
 						{PID: 5678, User: "root", CPU: 20.0, MEM: 6.0, Command: "compiler"},
@@ -54,7 +68,6 @@ func TestGenerateTTopHTML(t *testing.T) {
 		assert.NotContains(t, html, "chart.js")
 
 		// Verify all chart containers are present
-		assert.Contains(t, html, `id="threadCountChart"`)
 		assert.Contains(t, html, `id="threadByCpuChart"`)
 		assert.Contains(t, html, `id="memoryByTypeChart"`)
 		assert.Contains(t, html, `id="threadsByTypeChart"`)
@@ -62,7 +75,7 @@ func TestGenerateTTopHTML(t *testing.T) {
 		// Verify chart titles
 		assert.Contains(t, html, "Threads by Name/ID CPU Usage Over Time")
 		assert.Contains(t, html, "Memory Usage by Memory Type Over Time")
-		assert.Contains(t, html, "Total Threads by Type Over Time")
+		assert.Contains(t, html, "Thread States Over Time")
 
 		// Verify ECharts initialization
 		assert.Contains(t, html, "echarts.init")
@@ -82,6 +95,13 @@ func TestGenerateTTopHTML(t *testing.T) {
 			Snapshots: []TTopSnapshot{
 				{
 					Timestamp: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+					ThreadCounts: &ThreadCounts{
+						Total:    50,
+						Running:  1,
+						Sleeping: 49,
+						Stopped:  0,
+						Zombie:   0,
+					},
 					Threads: []ThreadInfo{
 						{PID: 1234, User: "dremio", CPU: 25.5, MEM: 10.2, Command: "java"},
 					},
@@ -198,11 +218,12 @@ func TestExtractThreadTypeLegendData(t *testing.T) {
 		data := &TTopReportData{
 			Snapshots: []TTopSnapshot{
 				{
-					Threads: []ThreadInfo{
-						{Command: "java"},
-						{Command: "compiler"},
-						{Command: "system"},
-						{Command: "other"},
+					ThreadCounts: &ThreadCounts{
+						Total:    10,
+						Running:  2,
+						Sleeping: 8,
+						Stopped:  0,
+						Zombie:   0,
 					},
 				},
 			},
@@ -210,10 +231,12 @@ func TestExtractThreadTypeLegendData(t *testing.T) {
 
 		result := extractThreadTypeLegendData(data)
 		assert.NotEmpty(t, result)
-		assert.Contains(t, result, "Java Threads")
-		assert.Contains(t, result, "System Threads")
-		assert.Contains(t, result, "Compiler Threads")
-		assert.Contains(t, result, "Other Threads")
+		assert.Contains(t, result, "Total Threads")
+		assert.Contains(t, result, "Running Threads")
+		assert.Contains(t, result, "Sleeping Threads")
+		// Should not contain stopped or zombie since they are 0
+		assert.NotContains(t, result, "Stopped Threads")
+		assert.NotContains(t, result, "Zombie Threads")
 	})
 }
 
@@ -222,11 +245,12 @@ func TestExtractThreadTypeSeriesData(t *testing.T) {
 		data := &TTopReportData{
 			Snapshots: []TTopSnapshot{
 				{
-					Threads: []ThreadInfo{
-						{Command: "java"},
-						{Command: "compiler"},
-						{Command: "system"},
-						{Command: "other"},
+					ThreadCounts: &ThreadCounts{
+						Total:    10,
+						Running:  2,
+						Sleeping: 8,
+						Stopped:  0,
+						Zombie:   0,
 					},
 				},
 			},
@@ -234,11 +258,15 @@ func TestExtractThreadTypeSeriesData(t *testing.T) {
 
 		result := extractThreadTypeSeriesData(data)
 		assert.NotEmpty(t, result)
-		assert.Contains(t, result, "Java Threads")
-		assert.Contains(t, result, "Compiler Threads")
-		assert.Contains(t, result, "System Threads")
-		assert.Contains(t, result, "Other Threads")
-		assert.Contains(t, result, "data: [1]") // One thread of each type
+		assert.Contains(t, result, "Total Threads")
+		assert.Contains(t, result, "Running Threads")
+		assert.Contains(t, result, "Sleeping Threads")
+		assert.Contains(t, result, "data: [10]") // Total threads
+		assert.Contains(t, result, "data: [2]")  // Running threads
+		assert.Contains(t, result, "data: [8]")  // Sleeping threads
+		// Should not contain stopped or zombie since they are 0
+		assert.NotContains(t, result, "Stopped Threads")
+		assert.NotContains(t, result, "Zombie Threads")
 	})
 }
 

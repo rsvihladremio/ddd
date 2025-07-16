@@ -20,11 +20,10 @@ import (
 	"strings"
 )
 
-// GenerateTTopHTML generates a self-contained HTML report with four charts:
-// 1. Total thread count over time
-// 2. Threads by Name/ID CPU Usage Over Time
-// 3. Memory Usage by Memory Type Over Time
-// 4. Total Threads by Type Over Time
+// GenerateTTopHTML generates a self-contained HTML report with three charts:
+// 1. Threads by Name/ID CPU Usage Over Time
+// 2. Memory Usage by Memory Type Over Time
+// 3. Thread States Over Time (using global thread counts from ttop header)
 func GenerateTTopHTML(data *TTopReportData) (string, error) {
 	if data == nil || len(data.Snapshots) == 0 {
 		return generateEmptyHTML(), nil
@@ -32,7 +31,6 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
 
 	// Prepare data for charts
 	labels := extractTimeLabels(data)
-	threadCountData := extractThreadCountData(data)
 	threadByCPUData := extractThreadByCPUSeriesData(data)
 	memoryByTypeData := extractMemoryTypeSeriesData(data)
 	threadsByTypeData := extractThreadTypeSeriesData(data)
@@ -105,10 +103,6 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
         </div>
 
         <div class="chart-container">
-            <div id="threadCountChart" style="width: 100%%; height: 400px;"></div>
-        </div>
-
-        <div class="chart-container">
             <div id="threadByCpuChart" style="width: 100%%; height: 400px;"></div>
         </div>
 
@@ -116,7 +110,7 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
             <div id="memoryByTypeChart" style="width: 100%%; height: 400px;"></div>
         </div>
 
-        <div class="chart-container"
+        <div class="chart-container">
             <div id="threadsByTypeChart" style="width: 100%%; height: 400px;"></div>
         </div>
     </div>
@@ -124,22 +118,6 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
     <script>
         console.log('Initializing charts...');
         try {
-                // Thread Count Chart
-                const threadCountChart = echarts.init(document.getElementById('threadCountChart'));
-                const threadCountOption = {
-                    title: { text: 'Thread Count Over Time' },
-                    tooltip: { trigger: 'axis' },
-                    legend: { data: ['Thread Count'] },
-                    xAxis: { type: 'category', data: %s },
-                    yAxis: { type: 'value' },
-                    series: [{
-                        name: 'Thread Count',
-                        type: 'line',
-                        data: %s
-                    }]
-                };
-                threadCountChart.setOption(threadCountOption);
-
                 // Thread by CPU Chart
                 const threadByCpuChart = echarts.init(document.getElementById('threadByCpuChart'));
                 const threadByCpuOption = {
@@ -167,7 +145,7 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
                 // Threads by Type Chart
                 const threadsByTypeChart = echarts.init(document.getElementById('threadsByTypeChart'));
                 const threadsByTypeOption = {
-                    title: { text: 'Total Threads by Type Over Time' },
+                    title: { text: 'Thread States Over Time' },
                     tooltip: { trigger: 'axis' },
                     legend: { data: [] },
                     xAxis: { type: 'category', data: %s },
@@ -178,7 +156,6 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
 
                 // Handle window resize
                 window.addEventListener('resize', function() {
-                    threadCountChart.resize();
                     threadByCpuChart.resize();
                     memoryByTypeChart.resize();
                     threadsByTypeChart.resize();
@@ -194,8 +171,6 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
 		len(data.Snapshots),
 		countUniqueThreads(data),
 		findPeakThreadCount(data),
-		labels,
-		threadCountData,
 		labels,
 		threadByCPUData,
 		labels,
@@ -229,15 +204,6 @@ func extractTimeLabels(data *TTopReportData) string {
 		labels = append(labels, fmt.Sprintf(`"%s"`, snapshot.Timestamp.Format("15:04:05")))
 	}
 	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
-}
-
-// extractThreadCountData extracts thread count for each snapshot
-func extractThreadCountData(data *TTopReportData) string {
-	var counts []string
-	for _, snapshot := range data.Snapshots {
-		counts = append(counts, fmt.Sprintf("%d", len(snapshot.Threads)))
-	}
-	return fmt.Sprintf("[%s]", strings.Join(counts, ", "))
 }
 
 // countUniqueThreads counts the total number of unique threads across all snapshots
@@ -394,104 +360,126 @@ func extractMemoryTypeSeriesData(data *TTopReportData) string {
 	return fmt.Sprintf("[%s]", strings.Join(datasets, ", "))
 }
 
-// extractThreadTypeLegendData extracts legend data for thread type chart
+// extractThreadTypeLegendData extracts legend data for thread type chart using global thread counts
 func extractThreadTypeLegendData(data *TTopReportData) []string {
-	// Check what types of threads we have
-	hasJava, hasCompiler, hasSystem, hasOther := false, false, false, false
+	// Check what types of thread counts we have from the global thread counts
+	hasRunning, hasSleeping, hasStopped, hasZombie := false, false, false, false
 
 	for _, snapshot := range data.Snapshots {
-		for _, thread := range snapshot.Threads {
-			command := strings.ToLower(thread.Command)
-			if strings.Contains(command, "java") {
-				hasJava = true
-			} else if strings.Contains(command, "compiler") || strings.Contains(command, "compile") {
-				hasCompiler = true
-			} else if strings.Contains(command, "system") || strings.Contains(command, "kernel") {
-				hasSystem = true
-			} else {
-				hasOther = true
+		if snapshot.ThreadCounts != nil {
+			if snapshot.ThreadCounts.Running > 0 {
+				hasRunning = true
+			}
+			if snapshot.ThreadCounts.Sleeping > 0 {
+				hasSleeping = true
+			}
+			if snapshot.ThreadCounts.Stopped > 0 {
+				hasStopped = true
+			}
+			if snapshot.ThreadCounts.Zombie > 0 {
+				hasZombie = true
 			}
 		}
 	}
 
 	var result []string
-	if hasJava {
-		result = append(result, "Java Threads")
+	// Always include total threads
+	result = append(result, "Total Threads")
+
+	if hasRunning {
+		result = append(result, "Running Threads")
 	}
-	if hasCompiler {
-		result = append(result, "Compiler Threads")
+	if hasSleeping {
+		result = append(result, "Sleeping Threads")
 	}
-	if hasSystem {
-		result = append(result, "System Threads")
+	if hasStopped {
+		result = append(result, "Stopped Threads")
 	}
-	if hasOther {
-		result = append(result, "Other Threads")
+	if hasZombie {
+		result = append(result, "Zombie Threads")
 	}
 	return result
 }
 
-// extractThreadTypeSeriesData extracts series data for thread type chart
+// extractThreadTypeSeriesData extracts series data for thread type chart using global thread counts
 func extractThreadTypeSeriesData(data *TTopReportData) string {
-	// Count threads by type for each snapshot
-	var javaSeries, compilerSeries, systemSeries, otherSeries []string
+	// Use global thread counts from the "Threads:" line instead of categorizing individual threads
+	var totalSeries, runningSeries, sleepingSeries, stoppedSeries, zombieSeries []string
 
 	for _, snapshot := range data.Snapshots {
-		javaCount, compilerCount, systemCount, otherCount := 0, 0, 0, 0
-
-		for _, thread := range snapshot.Threads {
-			command := strings.ToLower(thread.Command)
-			if strings.Contains(command, "java") {
-				javaCount++
-			} else if strings.Contains(command, "compiler") || strings.Contains(command, "compile") {
-				compilerCount++
-			} else if strings.Contains(command, "system") || strings.Contains(command, "kernel") {
-				systemCount++
-			} else {
-				otherCount++
-			}
+		// Use global thread counts if available, otherwise default to 0
+		if snapshot.ThreadCounts != nil {
+			totalSeries = append(totalSeries, fmt.Sprintf("%d", snapshot.ThreadCounts.Total))
+			runningSeries = append(runningSeries, fmt.Sprintf("%d", snapshot.ThreadCounts.Running))
+			sleepingSeries = append(sleepingSeries, fmt.Sprintf("%d", snapshot.ThreadCounts.Sleeping))
+			stoppedSeries = append(stoppedSeries, fmt.Sprintf("%d", snapshot.ThreadCounts.Stopped))
+			zombieSeries = append(zombieSeries, fmt.Sprintf("%d", snapshot.ThreadCounts.Zombie))
+		} else {
+			// Fallback to 0 if thread counts are not available
+			totalSeries = append(totalSeries, "0")
+			runningSeries = append(runningSeries, "0")
+			sleepingSeries = append(sleepingSeries, "0")
+			stoppedSeries = append(stoppedSeries, "0")
+			zombieSeries = append(zombieSeries, "0")
 		}
-
-		javaSeries = append(javaSeries, fmt.Sprintf("%d", javaCount))
-		compilerSeries = append(compilerSeries, fmt.Sprintf("%d", compilerCount))
-		systemSeries = append(systemSeries, fmt.Sprintf("%d", systemCount))
-		otherSeries = append(otherSeries, fmt.Sprintf("%d", otherCount))
 	}
 
 	var datasets []string
 
-	if len(javaSeries) > 0 {
+	// Always include total threads
+	datasets = append(datasets, fmt.Sprintf(`{
+		name: "Total Threads",
+		type: "line",
+		data: [%s]
+	}`, strings.Join(totalSeries, ", ")))
+
+	// Include running threads if there are any non-zero values
+	if hasNonZeroValues(runningSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "Java Threads",
-			type: "bar",
+			name: "Running Threads",
+			type: "line",
 			data: [%s]
-		}`, strings.Join(javaSeries, ", ")))
+		}`, strings.Join(runningSeries, ", ")))
 	}
 
-	if len(compilerSeries) > 0 {
+	// Include sleeping threads if there are any non-zero values
+	if hasNonZeroValues(sleepingSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "Compiler Threads",
-			type: "bar",
+			name: "Sleeping Threads",
+			type: "line",
 			data: [%s]
-		}`, strings.Join(compilerSeries, ", ")))
+		}`, strings.Join(sleepingSeries, ", ")))
 	}
 
-	if len(systemSeries) > 0 {
+	// Include stopped threads if there are any non-zero values
+	if hasNonZeroValues(stoppedSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "System Threads",
-			type: "bar",
+			name: "Stopped Threads",
+			type: "line",
 			data: [%s]
-		}`, strings.Join(systemSeries, ", ")))
+		}`, strings.Join(stoppedSeries, ", ")))
 	}
 
-	if len(otherSeries) > 0 {
+	// Include zombie threads if there are any non-zero values
+	if hasNonZeroValues(zombieSeries) {
 		datasets = append(datasets, fmt.Sprintf(`{
-			name: "Other Threads",
-			type: "bar",
+			name: "Zombie Threads",
+			type: "line",
 			data: [%s]
-		}`, strings.Join(otherSeries, ", ")))
+		}`, strings.Join(zombieSeries, ", ")))
 	}
 
 	return fmt.Sprintf("[%s]", strings.Join(datasets, ", "))
+}
+
+// hasNonZeroValues checks if a series contains any non-zero values
+func hasNonZeroValues(series []string) bool {
+	for _, value := range series {
+		if value != "0" {
+			return true
+		}
+	}
+	return false
 }
 
 // extractThreadByCPULegendData extracts legend data for thread by CPU chart

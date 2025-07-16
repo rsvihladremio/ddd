@@ -31,10 +31,20 @@ type ThreadInfo struct {
 	Command string  `json:"command"` // Command name/line
 }
 
+// ThreadCounts represents the global thread counts from the "Threads:" line
+type ThreadCounts struct {
+	Total    int `json:"total"`    // Total number of threads
+	Running  int `json:"running"`  // Number of running threads
+	Sleeping int `json:"sleeping"` // Number of sleeping threads
+	Stopped  int `json:"stopped"`  // Number of stopped threads
+	Zombie   int `json:"zombie"`   // Number of zombie threads
+}
+
 // TTopSnapshot represents a single snapshot of thread information with timestamp
 type TTopSnapshot struct {
-	Timestamp time.Time    `json:"timestamp"` // When this snapshot was taken
-	Threads   []ThreadInfo `json:"threads"`   // List of threads in this snapshot
+	Timestamp    time.Time     `json:"timestamp"`     // When this snapshot was taken
+	ThreadCounts *ThreadCounts `json:"thread_counts"` // Global thread counts from "Threads:" line
+	Threads      []ThreadInfo  `json:"threads"`       // List of threads in this snapshot
 }
 
 // TTopReportData represents the complete parsed ttop report data
@@ -78,8 +88,18 @@ func ParseTTop(content []byte) (*TTopReportData, error) {
 
 			// Start new snapshot
 			currentSnapshot = &TTopSnapshot{
-				Timestamp: timestamp,
-				Threads:   []ThreadInfo{},
+				Timestamp:    timestamp,
+				ThreadCounts: nil, // Will be populated when we find the "Threads:" line
+				Threads:      []ThreadInfo{},
+			}
+			continue
+		}
+
+		// Check if this line contains thread counts
+		if strings.HasPrefix(line, "Threads:") && currentSnapshot != nil {
+			threadCounts, err := parseThreadCountsLine(line)
+			if err == nil {
+				currentSnapshot.ThreadCounts = threadCounts
 			}
 			continue
 		}
@@ -128,6 +148,51 @@ func parseTimestampFromTopLine(line string) (time.Time, error) {
 	now := time.Now()
 	return time.Date(now.Year(), now.Month(), now.Day(),
 		parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, now.Location()), nil
+}
+
+// parseThreadCountsLine parses a line like "Threads: 262 total,   6 running, 256 sleeping,   0 stopped,   0 zombie"
+func parseThreadCountsLine(line string) (*ThreadCounts, error) {
+	// Remove "Threads: " prefix
+	line = strings.TrimPrefix(line, "Threads:")
+	line = strings.TrimSpace(line)
+
+	// Split by commas to get individual counts
+	parts := strings.Split(line, ",")
+	if len(parts) != 5 {
+		return nil, fmt.Errorf("expected 5 thread count parts, got %d", len(parts))
+	}
+
+	counts := &ThreadCounts{}
+
+	// Parse each part
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		fields := strings.Fields(part)
+		if len(fields) < 2 {
+			continue
+		}
+
+		count, err := strconv.Atoi(fields[0])
+		if err != nil {
+			continue
+		}
+
+		// Determine which type based on the second field
+		switch fields[1] {
+		case "total":
+			counts.Total = count
+		case "running":
+			counts.Running = count
+		case "sleeping":
+			counts.Sleeping = count
+		case "stopped":
+			counts.Stopped = count
+		case "zombie":
+			counts.Zombie = count
+		}
+	}
+
+	return counts, nil
 }
 
 // parseThreadLine parses a line that represents thread information

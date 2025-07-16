@@ -61,6 +61,14 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		assert.Equal(t, 3, snapshot1.Timestamp.Second())
 		assert.Len(t, snapshot1.Threads, 3) // 3 threads in first snapshot
 
+		// Check thread counts
+		require.NotNil(t, snapshot1.ThreadCounts)
+		assert.Equal(t, 262, snapshot1.ThreadCounts.Total)
+		assert.Equal(t, 6, snapshot1.ThreadCounts.Running)
+		assert.Equal(t, 256, snapshot1.ThreadCounts.Sleeping)
+		assert.Equal(t, 0, snapshot1.ThreadCounts.Stopped)
+		assert.Equal(t, 0, snapshot1.ThreadCounts.Zombie)
+
 		// Check first thread in first snapshot
 		thread1 := snapshot1.Threads[0]
 		assert.Equal(t, 997, thread1.PID)
@@ -75,6 +83,14 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  12032.0 avail Mem
 		assert.Equal(t, 2, snapshot2.Timestamp.Minute())
 		assert.Equal(t, 4, snapshot2.Timestamp.Second())
 		assert.Len(t, snapshot2.Threads, 4) // 4 threads in second snapshot
+
+		// Check thread counts for second snapshot
+		require.NotNil(t, snapshot2.ThreadCounts)
+		assert.Equal(t, 262, snapshot2.ThreadCounts.Total)
+		assert.Equal(t, 2, snapshot2.ThreadCounts.Running)
+		assert.Equal(t, 260, snapshot2.ThreadCounts.Sleeping)
+		assert.Equal(t, 0, snapshot2.ThreadCounts.Stopped)
+		assert.Equal(t, 0, snapshot2.ThreadCounts.Zombie)
 
 		// Check first thread in second snapshot
 		thread2 := snapshot2.Threads[0]
@@ -236,8 +252,9 @@ func TestTTopReportDataStructure(t *testing.T) {
 		}
 
 		snapshot := TTopSnapshot{
-			Timestamp: timestamp,
-			Threads:   []ThreadInfo{thread},
+			Timestamp:    timestamp,
+			ThreadCounts: &ThreadCounts{Total: 1, Running: 1, Sleeping: 0, Stopped: 0, Zombie: 0},
+			Threads:      []ThreadInfo{thread},
 		}
 
 		data := TTopReportData{
@@ -249,5 +266,43 @@ func TestTTopReportDataStructure(t *testing.T) {
 		assert.Equal(t, timestamp, data.Snapshots[0].Timestamp)
 		assert.Len(t, data.Snapshots[0].Threads, 1)
 		assert.Equal(t, thread, data.Snapshots[0].Threads[0])
+	})
+}
+
+func TestParseThreadCountsLine(t *testing.T) {
+	t.Run("Parse valid thread counts line", func(t *testing.T) {
+		line := "Threads: 262 total,   6 running, 256 sleeping,   0 stopped,   0 zombie"
+
+		counts, err := parseThreadCountsLine(line)
+		require.NoError(t, err)
+		require.NotNil(t, counts)
+
+		assert.Equal(t, 262, counts.Total)
+		assert.Equal(t, 6, counts.Running)
+		assert.Equal(t, 256, counts.Sleeping)
+		assert.Equal(t, 0, counts.Stopped)
+		assert.Equal(t, 0, counts.Zombie)
+	})
+
+	t.Run("Parse thread counts line with different values", func(t *testing.T) {
+		line := "Threads: 100 total,   2 running, 95 sleeping,   2 stopped,   1 zombie"
+
+		counts, err := parseThreadCountsLine(line)
+		require.NoError(t, err)
+		require.NotNil(t, counts)
+
+		assert.Equal(t, 100, counts.Total)
+		assert.Equal(t, 2, counts.Running)
+		assert.Equal(t, 95, counts.Sleeping)
+		assert.Equal(t, 2, counts.Stopped)
+		assert.Equal(t, 1, counts.Zombie)
+	})
+
+	t.Run("Parse malformed thread counts line", func(t *testing.T) {
+		line := "Threads: invalid format"
+
+		counts, err := parseThreadCountsLine(line)
+		assert.Error(t, err)
+		assert.Nil(t, counts)
 	})
 }
