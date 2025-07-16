@@ -105,22 +105,18 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">Thread Count Over Time</div>
             <div id="threadCountChart" style="width: 100%%; height: 400px;"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">Threads by Name/ID CPU Usage Over Time</div>
             <div id="threadByCpuChart" style="width: 100%%; height: 400px;"></div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">Memory Usage by Memory Type Over Time</div>
             <div id="memoryByTypeChart" style="width: 100%%; height: 400px;"></div>
         </div>
 
-        <div class="chart-container">
-            <div class="chart-title">Total Threads by Type Over Time</div>
+        <div class="chart-container"
             <div id="threadsByTypeChart" style="width: 100%%; height: 400px;"></div>
         </div>
     </div>
