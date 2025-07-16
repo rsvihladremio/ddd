@@ -21,6 +21,9 @@ class DDDApp {
         this.currentPage = 1;
         this.pageSize = 10;
         this.searchQuery = '';
+        this.currentFileId = null;
+        this.currentFileType = null;
+        this.pollingInterval = null;
         this.init();
     }
 
@@ -69,7 +72,17 @@ class DDDApp {
         const dialog = document.getElementById('report-dialog');
         const closeButton = dialog.querySelector('.close');
         closeButton.addEventListener('click', () => {
+            this.stopPolling();
+            this.currentFileId = null;
+            this.currentFileType = null;
             dialog.close();
+        });
+
+        // Also handle dialog close events (ESC key, clicking outside)
+        dialog.addEventListener('close', () => {
+            this.stopPolling();
+            this.currentFileId = null;
+            this.currentFileType = null;
         });
     }
 
@@ -267,76 +280,20 @@ class DDDApp {
 
     showReportsDialog(reports, fileId, fileType) {
         const dialog = document.getElementById('report-dialog');
-        const content = document.getElementById('report-content');
 
-        // Handle null/undefined reports array
-        if (!reports || reports.length === 0) {
-            content.innerHTML = `
-                <div class="no-reports-container">
-                    <p>No reports found for this file.</p>
-                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                            onclick="app.createReport(${fileId}, '${fileType}')">
-                        <i class="material-icons">play_arrow</i>
-                        Generate New Report
-                    </button>
-                </div>
-            `;
-        } else {
-            content.innerHTML = `
-                <div class="reports-container">
-                    <div class="reports-list">
-                        <div class="reports-header">
-                            <h4>Reports</h4>
-                            <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                                    onclick="app.createReport(${fileId}, '${fileType}')">
-                                <i class="material-icons">play_arrow</i>
-                                Generate New Report
-                            </button>
-                        </div>
-                        ${reports.map(report => `
-                            <div class="report-item" data-report-id="${report.id}">
-                                <div class="report-info">
-                                    <div>
-                                        <strong>${report.report_type}</strong>
-                                        <span class="status-badge status-${report.status}">${report.status}</span>
-                                    </div>
-                                    <div>
-                                        <small>Created: ${this.formatDate(report.created_time)}</small>
-                                    </div>
-                                    <div>
-                                        <small>Version: ${report.ddd_version}</small>
-                                    </div>
-                                    <div>
-                                        ${report.completed_time ? `<small>Completed: ${this.formatDate(report.completed_time)}</small>` : ''}
-                                        ${report.error_message ? `<small style="color: #d32f2f;">Error: ${report.error_message}</small>` : ''}
-                                    </div>
-                                </div>
-                                <div class="report-actions">
-                                    ${report.status === 'completed' ? `
-                                        <button class="mdl-button mdl-js-button mdl-button--icon"
-                                                onclick="app.copyReportLink(${report.id})" title="Copy Report Link">
-                                            <i class="material-icons">link</i>
-                                        </button>
-                                        <a href="/report/${report.id}" target="_blank"
-                                           class="mdl-button mdl-js-button mdl-button--icon" title="Open Report in New Tab">
-                                            <i class="material-icons">open_in_new</i>
-                                        </a>
-                                    ` : ''}
-                                    <button class="mdl-button mdl-js-button mdl-button--icon"
-                                            onclick="app.deleteReport(${report.id})" title="Delete Report">
-                                        <i class="material-icons">delete</i>
-                                    </button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
+        // Store current file info for polling
+        this.currentFileId = fileId;
+        this.currentFileType = fileType;
+
+        // Render the reports content
+        this.renderReportsContent(reports, fileId, fileType);
 
         // Re-initialize MDL components
         componentHandler.upgradeDom();
         dialog.showModal();
+
+        // Start polling for report status updates
+        this.startPolling();
     }
 
 
@@ -514,6 +471,12 @@ class DDDApp {
 
             if (result.success) {
                 alert('Report queued for processing!');
+                // Immediately refresh the reports to show the new pending report
+                this.refreshReports();
+                // Restart polling in case it was stopped
+                if (!this.pollingInterval) {
+                    this.startPolling();
+                }
             } else {
                 throw new Error(result.message || 'Failed to create report');
             }
@@ -521,6 +484,155 @@ class DDDApp {
             console.error('Error creating report:', error);
             alert('Failed to create report: ' + error.message);
         }
+    }
+
+    startPolling() {
+        // Stop any existing polling
+        this.stopPolling();
+
+        console.log('Starting polling for file:', this.currentFileId);
+        // Start polling every 2 seconds
+        this.pollingInterval = setInterval(() => {
+            this.refreshReports();
+        }, 2000);
+    }
+
+    stopPolling() {
+        if (this.pollingInterval) {
+            console.log('Stopping polling');
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+
+    async refreshReports() {
+        // Only refresh if dialog is open and we have file info
+        const dialog = document.getElementById('report-dialog');
+        if (!this.currentFileId || !dialog || !dialog.hasAttribute('open')) {
+            this.stopPolling();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/reports/${this.currentFileId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                const reports = Array.isArray(result.reports) ? result.reports : [];
+                this.updateReportsInDialog(reports);
+
+                // Stop polling if no reports are pending or running
+                const hasActiveReports = reports.some(report =>
+                    report.status === 'pending' || report.status === 'running'
+                );
+                console.log('Active reports found:', hasActiveReports, 'Total reports:', reports.length);
+
+                if (!hasActiveReports && reports.length > 0) {
+                    console.log('No active reports, stopping polling');
+                    this.stopPolling();
+                }
+            }
+        } catch (error) {
+            console.error('Error refreshing reports:', error);
+            // Don't show alerts during polling to avoid spam
+        }
+    }
+
+    updateReportsInDialog(reports) {
+        const content = document.getElementById('report-content');
+        if (!content) return;
+
+        // Check if we're in the no-reports state
+        if (reports.length === 0) {
+            // Keep the no-reports view if there are still no reports
+            if (content.querySelector('.no-reports-container')) {
+                return;
+            }
+        }
+
+        // Re-render the entire dialog content with updated reports
+        this.renderReportsContent(reports, this.currentFileId, this.currentFileType);
+    }
+
+    renderReportsContent(reports, fileId, fileType) {
+        const content = document.getElementById('report-content');
+
+        // Check if there are any active reports (pending or running)
+        const hasActiveReports = reports && reports.some(report =>
+            report.status === 'pending' || report.status === 'running'
+        );
+
+        if (!reports || reports.length === 0) {
+            content.innerHTML = `
+                <div class="no-reports-container">
+                    <p>No reports found for this file.</p>
+                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                            onclick="app.createReport(${fileId}, '${fileType}')">
+                        <i class="material-icons">play_arrow</i>
+                        Generate New Report
+                    </button>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="reports-container">
+                    <div class="reports-list">
+                        <div class="reports-header">
+                            <h4>Reports ${hasActiveReports ? '<span class="polling-indicator" title="Auto-refreshing every 2 seconds"></span>' : ''}</h4>
+                            <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                                    onclick="app.createReport(${fileId}, '${fileType}')">
+                                <i class="material-icons">play_arrow</i>
+                                Generate New Report
+                            </button>
+                        </div>
+                        ${reports.map(report => `
+                            <div class="report-item" data-report-id="${report.id}">
+                                <div class="report-info">
+                                    <div>
+                                        <strong>${report.report_type}</strong>
+                                        <span class="status-badge status-${report.status}">${report.status}</span>
+                                    </div>
+                                    <div>
+                                        <small>Created: ${this.formatDate(report.created_time)}</small>
+                                    </div>
+                                    <div>
+                                        <small>Version: ${report.ddd_version}</small>
+                                    </div>
+                                    <div>
+                                        ${report.completed_time ? `<small>Completed: ${this.formatDate(report.completed_time)}</small>` : ''}
+                                        ${report.error_message ? `<small style="color: #d32f2f;">Error: ${report.error_message}</small>` : ''}
+                                    </div>
+                                </div>
+                                <div class="report-actions">
+                                    ${report.status === 'completed' ? `
+                                        <button class="mdl-button mdl-js-button mdl-button--icon"
+                                                onclick="app.copyReportLink(${report.id})" title="Copy Report Link">
+                                            <i class="material-icons">link</i>
+                                        </button>
+                                        <a href="/report/${report.id}" target="_blank"
+                                           class="mdl-button mdl-js-button mdl-button--icon" title="Open Report in New Tab">
+                                            <i class="material-icons">open_in_new</i>
+                                        </a>
+                                    ` : ''}
+                                    <button class="mdl-button mdl-js-button mdl-button--icon"
+                                            onclick="app.deleteReport(${report.id})" title="Delete Report">
+                                        <i class="material-icons">delete</i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Re-initialize MDL components for any new buttons
+        componentHandler.upgradeDom();
     }
 
     async deleteFile(fileId) {
