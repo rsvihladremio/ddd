@@ -100,6 +100,156 @@ func TestGenerateTTopReport(t *testing.T) {
 	})
 }
 
+func TestGenerateIOStatReport(t *testing.T) {
+	t.Run("Valid iostat file", func(t *testing.T) {
+		// Create a temporary iostat file
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "iostat.txt")
+
+		iostatContent := `Linux 5.10.0-32-cloud-amd64 (ddc-test-dremio-master) 	09/04/24 	_x86_64_	(4 CPU)
+
+09/04/24 12:07:20
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           2.36    0.00    0.40    0.04    0.01   97.20
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              2.08     94.38     0.31  13.07    0.89    45.47    9.58    210.39     5.55  36.68    2.74    21.96    0.09    377.20     0.00   0.00    0.95  4151.86    3.94    0.06    0.03   1.39
+
+
+09/04/24 12:07:21
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          33.91    0.00    7.67    2.72    0.00   55.69
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00  395.00  38116.00   133.00  25.19    8.65    96.50    1.00      4.00     0.00   0.00    1.00     4.00  122.00    0.06    3.42  39.20`
+
+		err := os.WriteFile(filePath, []byte(iostatContent), 0644)
+		require.NoError(t, err)
+
+		// Generate report
+		reportJSON, err := GenerateIOStatReport(filePath)
+		require.NoError(t, err)
+		assert.NotEmpty(t, reportJSON)
+
+		// Parse and validate the report
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		// Check basic fields
+		assert.Equal(t, "iostat", report["type"])
+		assert.Equal(t, float64(len(iostatContent)), report["file_size"])
+		assert.Contains(t, report, "summary")
+		assert.Contains(t, report, "analysis")
+		assert.Contains(t, report, "generated_at")
+		assert.Contains(t, report, "html_report")
+
+		// Check iostat-specific fields
+		assert.Contains(t, report, "snapshot_count")
+		assert.Contains(t, report, "unique_devices")
+		assert.Contains(t, report, "peak_cpu_usage")
+		assert.Contains(t, report, "peak_device_queue_size")
+		assert.Contains(t, report, "system_info")
+
+		// Verify values
+		assert.Equal(t, float64(2), report["snapshot_count"])
+		assert.Equal(t, float64(1), report["unique_devices"])
+		assert.Contains(t, report["system_info"], "Linux")
+		assert.Contains(t, report["system_info"], "ddc-test-dremio-master")
+
+		// Verify HTML report
+		htmlReport := report["html_report"].(string)
+		assert.Contains(t, htmlReport, "<!DOCTYPE html>")
+		assert.Contains(t, htmlReport, "IOStat Analysis Report")
+		assert.Contains(t, htmlReport, "echarts.min.js")
+	})
+
+	t.Run("Empty iostat file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "empty_iostat.txt")
+
+		err := os.WriteFile(filePath, []byte(""), 0644)
+		require.NoError(t, err)
+
+		reportJSON, err := GenerateIOStatReport(filePath)
+		require.NoError(t, err)
+
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		assert.Equal(t, "iostat", report["type"])
+		assert.Equal(t, float64(0), report["file_size"])
+		assert.Equal(t, float64(0), report["snapshot_count"])
+		assert.Equal(t, float64(0), report["unique_devices"])
+	})
+
+	t.Run("Malformed iostat file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "malformed_iostat.txt")
+
+		malformedContent := `This is not a valid iostat file
+It contains random text
+That should not cause the parser to crash`
+
+		err := os.WriteFile(filePath, []byte(malformedContent), 0644)
+		require.NoError(t, err)
+
+		reportJSON, err := GenerateIOStatReport(filePath)
+		require.NoError(t, err)
+
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		assert.Equal(t, "iostat", report["type"])
+		assert.Equal(t, float64(0), report["snapshot_count"])
+		assert.Equal(t, float64(0), report["unique_devices"])
+	})
+
+	t.Run("Large iostat file with multiple devices", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "large_iostat.txt")
+
+		// Create a larger iostat file with multiple devices and snapshots
+		largeContent := `Linux 5.10.0-32-cloud-amd64 (test-system) 	09/04/24 	_x86_64_	(8 CPU)
+
+09/04/24 12:07:20
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          25.50    1.20    8.30    3.40    0.60   61.00
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              5.00    250.00     1.00  20.00    2.00    50.00   10.00    500.00     3.00  30.00    4.00    50.00    0.50     25.00     0.10   5.00    3.00    50.00    1.00    0.10    0.05  25.50
+sdb              3.00    150.00     0.50  15.00    1.50    50.00    6.00    300.00     2.00  25.00    3.50    50.00    0.25     12.50     0.05   2.50    2.50    50.00    0.50    0.08    0.03  15.75
+nvme0n1          8.00    400.00     2.00  25.00    1.00    50.00   16.00    800.00     5.00  31.25    2.50    50.00    1.00     50.00     0.20  10.00    2.00    50.00    2.00    0.05    0.08  35.25
+
+09/04/24 12:07:21
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          30.00    0.80    10.20    4.50    0.50   54.00
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              7.00    350.00     1.50  21.43    2.20    50.00   14.00    700.00     4.00  28.57    4.20    50.00    0.70     35.00     0.15   7.14    3.20    50.00    1.40    0.12    0.07  32.50
+sdb              4.00    200.00     0.75  18.75    1.75    50.00    8.00    400.00     2.50  31.25    3.75    50.00    0.40     20.00     0.08   4.00    2.75    50.00    0.80    0.10    0.04  20.25
+nvme0n1         10.00    500.00     2.50  25.00    1.10    50.00   20.00   1000.00     6.00  30.00    2.60    50.00    1.50     75.00     0.30  12.00    2.10    50.00    3.00    0.06    0.10  42.75`
+
+		err := os.WriteFile(filePath, []byte(largeContent), 0644)
+		require.NoError(t, err)
+
+		reportJSON, err := GenerateIOStatReport(filePath)
+		require.NoError(t, err)
+
+		var report map[string]interface{}
+		err = json.Unmarshal([]byte(reportJSON), &report)
+		require.NoError(t, err)
+
+		assert.Equal(t, "iostat", report["type"])
+		assert.Equal(t, float64(2), report["snapshot_count"])
+		assert.Equal(t, float64(3), report["unique_devices"]) // sda, sdb, nvme0n1
+		assert.Greater(t, report["peak_cpu_usage"].(float64), 40.0)
+		assert.Greater(t, report["peak_device_queue_size"].(float64), 0.05)
+	})
+}
+
 func TestReportGeneration_Integration(t *testing.T) {
 	t.Run("Generate reports for all sample file types", func(t *testing.T) {
 		tempDir := t.TempDir()
@@ -123,6 +273,57 @@ func TestReportGeneration_Integration(t *testing.T) {
 		for _, field := range requiredFields {
 			assert.Contains(t, reportData, field, "Report should contain field: %s", field)
 		}
+
+		// Test iostat report generation
+		iostatPath := filepath.Join(tempDir, "iostat.txt")
+		iostatContent := `Linux 5.10.0-32-cloud-amd64 (test-system) 	09/04/24 	_x86_64_	(4 CPU)
+
+09/04/24 12:07:20
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           2.36    0.00    0.40    0.04    0.01   97.20
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              2.08     94.38     0.31  13.07    0.89    45.47    9.58    210.39     5.55  36.68    2.74    21.96    0.09    377.20     0.00   0.00    0.95  4151.86    3.94    0.06    0.03   1.39
+
+09/04/24 12:07:21
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          33.91    0.00    7.67    2.72    0.00   55.69
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00  395.00  38116.00   133.00  25.19    8.65    96.50    1.00      4.00     0.00   0.00    1.00     4.00  122.00    0.06    3.42  39.20`
+
+		err = os.WriteFile(iostatPath, []byte(iostatContent), 0644)
+		require.NoError(t, err)
+
+		iostatReport, err := GenerateIOStatReport(iostatPath)
+		require.NoError(t, err)
+		assert.NotEmpty(t, iostatReport)
+
+		// Validate iostat JSON structure
+		var iostatReportData map[string]interface{}
+		err = json.Unmarshal([]byte(iostatReport), &iostatReportData)
+		require.NoError(t, err)
+
+		assert.Equal(t, "iostat", iostatReportData["type"])
+		assert.Contains(t, iostatReportData, "html_report")
+		assert.Contains(t, iostatReportData, "snapshot_count")
+		assert.Contains(t, iostatReportData, "unique_devices")
+		assert.Contains(t, iostatReportData, "peak_cpu_usage")
+		assert.Contains(t, iostatReportData, "peak_device_queue_size")
+		assert.Contains(t, iostatReportData, "system_info")
+
+		// Verify HTML report contains expected elements
+		htmlReport := iostatReportData["html_report"].(string)
+		assert.Contains(t, htmlReport, "echarts.min.js")
+		assert.Contains(t, htmlReport, "CPU Utilization Over Time")
+		assert.Contains(t, htmlReport, "Device I/O Throughput Over Time")
+		assert.Contains(t, htmlReport, "Device I/O Await Times")
+		assert.Contains(t, htmlReport, "Device Average Queue Size")
+		assert.Contains(t, htmlReport, "Device I/O Requests Per Second")
+		assert.Contains(t, htmlReport, "Device I/O Request Sizes")
+
+		// Verify device utilization chart is NOT present
+		assert.NotContains(t, htmlReport, "Device Utilization Over Time")
 	})
 
 	t.Run("Report generation with special characters", func(t *testing.T) {
