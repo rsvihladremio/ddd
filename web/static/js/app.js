@@ -192,7 +192,7 @@ class DDDApp {
             }
         } catch (error) {
             console.error('Error loading files:', error);
-            filesList.innerHTML = '<tr><td colspan="5">Error loading files</td></tr>';
+            filesList.innerHTML = '<tr><td colspan="6">Error loading files</td></tr>';
         } finally {
             loadingDiv.style.display = 'none';
         }
@@ -215,6 +215,13 @@ class DDDApp {
                 <td class="mdl-data-table__cell--non-numeric">
                     ${this.escapeHtml(file.original_name)}
                     ${file.deleted ? '<span class="deleted-indicator">(File Removed)</span>' : ''}
+                </td>
+                <td>
+                    <span class="file-hash"
+                          onclick="app.showHashVerification('${file.hash}', '${file.original_name}')"
+                          title="Click to show verification command">
+                        ${file.hash.substring(0, 6)}...
+                    </span>
                 </td>
                 <td>
                     <span class="file-type-badge file-type-${file.file_type}">
@@ -691,6 +698,90 @@ class DDDApp {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+
+    showHashVerification(hash, filename) {
+        const command = `echo "${hash}  ${filename}" | shasum -a 256 -c`;
+
+        const instructions = `
+<strong>Verification Command:</strong><br>
+<code>${command}</code>
+<br><br>
+<em>This command will verify that your local file matches the uploaded file's SHA256 hash.</em>
+<br><em>Run this command in the directory containing your local copy of the file.</em>
+        `;
+
+        // Create a dialog to show the verification command
+        const dialog = document.createElement('div');
+        dialog.className = 'hash-verification-dialog';
+        dialog.innerHTML = `
+            <div class="hash-verification-content">
+                <div class="hash-verification-header">
+                    <h3>File Hash Verification</h3>
+                    <button class="close-button" onclick="this.closest('.hash-verification-dialog').remove()">×</button>
+                </div>
+                <div class="hash-verification-body">
+                    <p><strong>File:</strong> ${this.escapeHtml(filename)}</p>
+                    <p><strong>Full Hash:</strong> <code>${hash}</code></p>
+                    ${instructions}
+                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored copy-command-btn">
+                        Copy Command
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add click handler for copy button
+        dialog.querySelector('.copy-command-btn').addEventListener('click', () => {
+            this.copyToClipboard(command);
+        });
+
+        // Add to body and show
+        document.body.appendChild(dialog);
+
+        // Close on background click
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                dialog.remove();
+            }
+        });
+    }
+
+    copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showToast('Command copied to clipboard!');
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+                this.fallbackCopyTextToClipboard(text);
+            });
+        } else {
+            this.fallbackCopyTextToClipboard(text);
+        }
+    }
+
+    fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showToast('Command copied to clipboard!');
+        } catch (err) {
+            console.error('Fallback: Could not copy text:', err);
+            this.showToast('Could not copy to clipboard');
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+
 
     formatDate(dateStr) {
         const date = new Date(dateStr);
