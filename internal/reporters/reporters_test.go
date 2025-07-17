@@ -631,7 +631,9 @@ Threads: 100 total,   2 running, 98 sleeping,   0 stopped,   0 zombie
 		assert.Contains(t, htmlReport, "echarts.min.js")
 
 		// Verify summary information
-		assert.Contains(t, htmlReport, "1 snapshots") // Single snapshot
-		assert.Contains(t, htmlReport, "2")           // Should mention 2 unique threads
+		assert.Contains(t, htmlReport, "Snapshots")                         // Snapshots label
+		assert.Contains(t, htmlReport, "<div class=\"stat-value\">1</div>") // Single snapshot
+		assert.Contains(t, htmlReport, "Unique Threads")                    // Unique threads label
+		assert.Contains(t, htmlReport, "<div class=\"stat-value\">2</div>") // Should mention 2 unique threads
 	})
 }
