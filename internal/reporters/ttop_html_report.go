@@ -45,73 +45,113 @@ func GenerateTTopHTML(data *TTopReportData) (string, error) {
     <script src="/static/js/echarts.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #06b6d4 0%%, #0891b2 100%%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 0;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background-color: #f8f9fa;
+        }
+        .stat-card {
+            background: white;
             padding: 20px;
             border-radius: 8px;
+            text-align: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #06b6d4;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
         }
         .chart-container {
-            margin-bottom: 40px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            background-color: #fafafa;
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .chart-container:last-child {
+            border-bottom: none;
         }
         .chart-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #555;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
         }
         .chart {
-            max-width: 100%%;
+            width: 100%%;
             height: 400px;
-        }
-        .summary {
-            background-color: #e8f4f8;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        .summary h3 {
-            margin-top: 0;
-            color: #2c5282;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>TTop Analysis Report</h1>
-        
-        <div class="summary">
-            <h3>Summary</h3>
-            <p>Analysis of %d snapshots covering thread activity over time.</p>
-            <p>Total unique threads observed: %d</p>
-            <p>Peak thread count: %d</p>
+        <div class="header">
+            <h1>TTop Analysis Report</h1>
+            <p>Thread Activity Performance Analysis</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">%d</div>
+                <div class="stat-label">Snapshots</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">%d</div>
+                <div class="stat-label">Unique Threads</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">%d</div>
+                <div class="stat-label">Peak Thread Count</div>
+            </div>
         </div>
 
         <div class="chart-container">
-            <div id="threadByCpuChart" style="width: 100%%; height: 400px;"></div>
+            <div class="chart-title">Thread CPU Usage Over Time</div>
+            <div id="threadByCpuChart" class="chart"></div>
         </div>
 
         <div class="chart-container">
-            <div id="memoryByTypeChart" style="width: 100%%; height: 400px;"></div>
+            <div class="chart-title">System Memory Usage Over Time</div>
+            <div id="memoryByTypeChart" class="chart"></div>
         </div>
 
         <div class="chart-container">
-            <div id="threadsByTypeChart" style="width: 100%%; height: 400px;"></div>
+            <div class="chart-title">Thread States Over Time</div>
+            <div id="threadsByTypeChart" class="chart"></div>
         </div>
     </div>
 

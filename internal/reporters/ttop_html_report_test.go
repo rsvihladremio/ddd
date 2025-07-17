@@ -142,7 +142,8 @@ func TestGenerateTTopHTML(t *testing.T) {
 		html, err := GenerateTTopHTML(data)
 		require.NoError(t, err)
 		assert.NotEmpty(t, html)
-		assert.Contains(t, html, "1 snapshots")
+		assert.Contains(t, html, "Snapshots")
+		assert.Contains(t, html, "<div class=\"stat-value\">1</div>")
 	})
 }
 
