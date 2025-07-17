@@ -97,20 +97,55 @@ func GenerateTTopReport(filePath string) (string, error) {
 	return string(reportJSON), nil
 }
 
-// GenerateIOStatReport generates a report for iostat files
+// GenerateIOStatReport generates a comprehensive report for iostat files
+// This function parses iostat output to extract I/O statistics over time
+// and generates both a JSON summary and an HTML report with interactive charts
 func GenerateIOStatReport(filePath string) (string, error) {
 	content, err := secureReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Parse iostat content and generate report
+	// Parse iostat content to extract structured data
+	parsedData, err := ParseIOStat(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse iostat content: %w", err)
+	}
+
+	// Generate HTML report with charts
+	htmlReport, err := GenerateIOStatHTML(parsedData)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate HTML report: %w", err)
+	}
+
+	// Calculate summary statistics
+	snapshotCount := len(parsedData.Snapshots)
+	uniqueDevices := countUniqueDevices(parsedData)
+	peakCPUUsage := findPeakCPUUsage(parsedData)
+	peakDeviceQueueSize := findPeakDeviceQueueSize(parsedData)
+
+	// Generate summary and analysis text
+	summary := fmt.Sprintf("IOStat analysis report covering %d snapshots with %d devices monitored",
+		snapshotCount, uniqueDevices)
+
+	analysis := fmt.Sprintf("Peak CPU usage: %.1f%%, Peak device queue size: %.1f. "+
+		"Analysis includes CPU utilization over time, I/O throughput patterns, await times, "+
+		"queue sizes, and request patterns. Interactive charts provide detailed visualization of system I/O performance.",
+		peakCPUUsage, peakDeviceQueueSize)
+
+	// Build comprehensive report structure
 	report := map[string]interface{}{
-		"type":         "iostat",
-		"file_size":    len(content),
-		"summary":      "IOStat analysis report",
-		"analysis":     "Basic iostat file analysis - implementation pending",
-		"generated_at": "2024-01-01T00:00:00Z", // TODO: use actual timestamp
+		"type":                   "iostat",
+		"file_size":              len(content),
+		"summary":                summary,
+		"analysis":               analysis,
+		"generated_at":           fmt.Sprintf("%s", time.Now().Format(time.RFC3339)),
+		"html_report":            htmlReport,
+		"snapshot_count":         snapshotCount,
+		"unique_devices":         uniqueDevices,
+		"peak_cpu_usage":         peakCPUUsage,
+		"peak_device_queue_size": peakDeviceQueueSize,
+		"system_info":            parsedData.SystemInfo,
 	}
 
 	reportJSON, err := json.Marshal(report)

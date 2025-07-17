@@ -92,8 +92,22 @@ var SampleFiles = map[string]TestFile{
 		FileType: "ttop",
 	},
 	"iostat": {
-		Name:     "iostat.txt",
-		Content:  []byte("Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util\nsda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00\n"),
+		Name: "iostat.txt",
+		Content: []byte(`Linux 5.10.0-32-cloud-amd64 (test-system) 	09/04/24 	_x86_64_	(4 CPU)
+
+09/04/24 12:07:20
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           2.36    0.00    0.40    0.04    0.01   97.20
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              2.08     94.38     0.31  13.07    0.89    45.47    9.58    210.39     5.55  36.68    2.74    21.96    0.09    377.20     0.00   0.00    0.95  4151.86    3.94    0.06    0.03   1.39
+
+09/04/24 12:07:21
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          33.91    0.00    7.67    2.72    0.00   55.69
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00  395.00  38116.00   133.00  25.19    8.65    96.50    1.00      4.00     0.00   0.00    1.00     4.00  122.00    0.06    3.42  39.20`),
 		FileType: "iostat",
 	},
 	"queries_json": {
