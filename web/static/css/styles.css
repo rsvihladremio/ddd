@@ -13,11 +13,102 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* Custom styles for DDD application */
+/* Custom styles for DDD application - Dremio colors */
+
+:root {
+    /* Dremio exact colors from their website */
+    --dremio-navy: #1a202c;           /* Dark navy blue - primary */
+    --dremio-blue: #2563eb;           /* Bright blue - secondary */
+    --dremio-teal: #06b6d4;           /* Light teal/cyan - accent */
+    --dremio-green: #10b981;          /* Bright green - success */
+    --dremio-light-green: #34d399;    /* Light green - hover */
+
+    /* Neutral grays */
+    --dremio-gray-50: #f9fafb;
+    --dremio-gray-100: #f3f4f6;
+    --dremio-gray-200: #e5e7eb;
+    --dremio-gray-300: #d1d5db;
+    --dremio-gray-400: #9ca3af;
+    --dremio-gray-500: #6b7280;
+    --dremio-gray-600: #4b5563;
+    --dremio-gray-700: #374151;
+    --dremio-gray-800: #1f2937;
+    --dremio-gray-900: #111827;
+
+    /* Status colors */
+    --dremio-success: var(--dremio-green);
+    --dremio-warning: #f59e0b;
+    --dremio-error: #ef4444;
+    --dremio-info: var(--dremio-teal);
+}
 
 body {
     font-family: 'Roboto', sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--dremio-gray-50);
+    color: var(--dremio-gray-800);
+}
+
+/* Dremio header styling */
+.mdl-layout__header {
+    background: #43b8c9;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mdl-layout__header .mdl-layout-title {
+    color: white;
+    font-weight: 500;
+}
+
+.mdl-layout__header .mdl-navigation__link {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+}
+
+.mdl-layout__header .mdl-navigation__link:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+
+
+/* Dremio-style buttons */
+.mdl-button--raised.mdl-button--colored {
+    background-color: var(--dremio-teal);
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.mdl-button--raised.mdl-button--colored:hover {
+    background-color: #008180;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.mdl-button--accent.mdl-button--accent.mdl-button--raised {
+    background-color: var(--dremio-green);
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: none;
+}
+
+.mdl-button--accent.mdl-button--accent.mdl-button--raised:hover {
+    background-color: #008180;
+}
+
+/* Icon buttons */
+.mdl-button--icon {
+    color: var(--dremio-gray-500);
+    transition: color 0.2s ease;
+}
+
+.mdl-button--icon:hover {
+    color: #008180;
+    background-color: rgba(0, 129, 128, 0.1);
 }
 
 /* Upload section within Files card */
@@ -28,23 +119,23 @@ body {
 }
 
 .upload-area {
-    border: 2px dashed #ccc;
+    border: 2px dashed var(--dremio-gray-300);
     border-radius: 8px;
     padding: 40px;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    background-color: #fafafa;
+    background-color: white;
 }
 
 .upload-area:hover {
-    border-color: #2196F3;
-    background-color: #f0f8ff;
+    border-color: var(--dremio-teal);
+    background-color: rgba(6, 182, 212, 0.05);
 }
 
 .upload-area.dragover {
-    border-color: #2196F3;
-    background-color: #e3f2fd;
+    border-color: var(--dremio-teal);
+    background-color: rgba(6, 182, 212, 0.1);
     transform: scale(1.02);
 }
 
@@ -89,23 +180,23 @@ body {
 }
 
 .status-pending {
-    background-color: #fff3cd;
-    color: #856404;
+    background-color: #fef3c7;
+    color: var(--dremio-warning);
 }
 
 .status-running {
-    background-color: #d1ecf1;
-    color: #0c5460;
+    background-color: rgba(6, 182, 212, 0.1);
+    color: var(--dremio-teal);
 }
 
 .status-completed {
-    background-color: #d4edda;
-    color: #155724;
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--dremio-green);
 }
 
 .status-failed {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--dremio-error);
 }
 
 .pagination {
@@ -138,31 +229,31 @@ body {
 }
 
 .file-type-jfr {
-    background-color: #ff9800;
+    background-color: var(--dremio-warning);
 }
 
 .file-type-ttop {
-    background-color: #4caf50;
+    background-color: var(--dremio-green);
 }
 
 .file-type-iostat {
-    background-color: #2196f3;
+    background-color: var(--dremio-teal);
 }
 
 .file-type-dremio_profile {
-    background-color: #9c27b0;
+    background-color: var(--dremio-blue);
 }
 
 .file-type-queries_json {
-    background-color: #f44336;
+    background-color: var(--dremio-error);
 }
 
 .file-type-archive {
-    background-color: #795548;
+    background-color: var(--dremio-gray-600);
 }
 
 .file-type-unknown {
-    background-color: #607d8b;
+    background-color: var(--dremio-gray-500);
 }
 
 .file-size {
@@ -183,21 +274,21 @@ body {
 }
 
 .upload-status.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--dremio-green);
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .upload-status.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--dremio-error);
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .search-section {
     margin-bottom: 20px;
     padding-bottom: 20px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--dremio-gray-200);
     display: flex;
     align-items: flex-end;
     gap: 16px;
@@ -214,18 +305,31 @@ body {
 }
 
 .mdl-data-table th {
-    color: rgba(0,0,0,.54);
+    color: var(--dremio-gray-700);
     font-weight: 500;
 }
 
 .mdl-data-table td {
-    border-top: 1px solid rgba(0,0,0,.12);
+    border-top: 1px solid var(--dremio-gray-200);
 }
 
 /* Make the files card wider */
 .mdl-card {
     width: 100%;
     max-width: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    border: 1px solid var(--dremio-gray-200);
+}
+
+.mdl-card__title {
+    background: #008180;
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.mdl-card__title-text {
+    color: white;
 }
 
 
@@ -384,7 +488,7 @@ body {
     display: inline-block;
     width: 8px;
     height: 8px;
-    background-color: #4caf50;
+    background-color: var(--dremio-teal);
     border-radius: 50%;
     margin-left: 8px;
     animation: pulse 2s infinite;
@@ -399,21 +503,21 @@ body {
 .report-viewer {
     flex: 1;
     min-height: 200px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    background-color: #f9f9f9;
+    border: 1px solid var(--dremio-gray-200);
+    border-radius: 8px;
+    background-color: white;
 }
 
 .report-item {
     display: flex;
     align-items: center;
     padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--dremio-gray-200);
     transition: background-color 0.2s ease;
 }
 
 .report-item:hover {
-    background-color: #f5f5f5;
+    background-color: var(--dremio-gray-50);
 }
 
 .report-item:last-child {
@@ -421,8 +525,8 @@ body {
 }
 
 .report-item.selected {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
+    background-color: rgba(6, 182, 212, 0.1);
+    border-left: 4px solid var(--dremio-teal);
 }
 
 .report-info {
@@ -482,11 +586,25 @@ body {
 }
 
 .error-message {
-    color: #d32f2f;
-    background-color: #ffebee;
+    color: var(--dremio-error);
+    background-color: rgba(239, 68, 68, 0.1);
     padding: 12px;
-    border-radius: 4px;
-    border-left: 4px solid #d32f2f;
+    border-radius: 8px;
+    border-left: 4px solid var(--dremio-error);
+}
+
+/* Footer styling */
+.mdl-mini-footer {
+    background-color: #43b8c9;
+    color: white;
+}
+
+.mdl-mini-footer a {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.mdl-mini-footer a:hover {
+    color: white;
 }
 
 /* Deleted file styles */

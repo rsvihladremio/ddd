@@ -352,13 +352,14 @@ class DDDApp {
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #323232;
+            background-color: #1a202c;
             color: white;
             padding: 12px 24px;
-            border-radius: 4px;
+            border-radius: 8px;
             z-index: 10000;
             font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-left: 4px solid #06b6d4;
         `;
 
         document.body.appendChild(toast);
