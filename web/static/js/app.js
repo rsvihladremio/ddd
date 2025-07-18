@@ -185,8 +185,9 @@ class DDDApp {
             const result = await response.json();
 
             if (result.success) {
-                this.renderFiles(result.files);
-                this.updatePagination(result.files.length);
+                const files = result.files || [];
+                this.renderFiles(files);
+                this.updatePagination(files.length);
             } else {
                 throw new Error(result.message || 'Failed to load files');
             }
@@ -204,7 +205,7 @@ class DDDApp {
         const filesList = document.getElementById('files-list');
         const emptyDiv = document.getElementById('files-empty');
 
-        if (files.length === 0) {
+        if (!files || files.length === 0) {
             filesList.innerHTML = '';
             emptyDiv.style.display = 'block';
             emptyDiv.textContent = 'No files found. Upload a file to generate reports.';
@@ -242,6 +243,11 @@ class DDDApp {
                         </button>
 
                         ${!file.deleted ? `
+                            <button class="mdl-button mdl-js-button mdl-button--icon"
+                                    onclick="app.redetectFileType(${file.id})"
+                                    title="Redetect File Type">
+                                <i class="material-icons">autorenew</i>
+                            </button>
                             <button class="mdl-button mdl-js-button mdl-button--icon"
                                     onclick="app.deleteFile(${file.id})"
                                     title="Delete File">
@@ -669,6 +675,27 @@ class DDDApp {
 
         // Re-initialize MDL components for any new buttons
         componentHandler.upgradeDom();
+    }
+
+    async redetectFileType(fileId) {
+        try {
+            const response = await fetch(`/api/files/${fileId}/redetect`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showToast('File type redetection started!');
+                // Refresh file list after a short delay to show updated type
+                setTimeout(() => this.loadFiles(), 1000);
+            } else {
+                throw new Error(result.message || 'Failed to redetect file type');
+            }
+        } catch (error) {
+            console.error('Error redetecting file type:', error);
+            this.showToast('Failed to redetect file type: ' + error.message);
+        }
     }
 
     async deleteFile(fileId) {

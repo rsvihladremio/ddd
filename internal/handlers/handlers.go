@@ -81,7 +81,7 @@ func (h *Handlers) HandleReportPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get file information
-	file, err := h.getFileByID(report.FileID)
+	file, err := h.db.GetFileByID(report.FileID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -326,7 +326,7 @@ func (h *Handlers) HandleFileOperations(w http.ResponseWriter, r *http.Request) 
 	switch r.Method {
 	case http.MethodDelete:
 		// Get file info first to get the file path
-		file, err := h.getFileByID(fileID)
+		file, err := h.db.GetFileByID(fileID)
 		if err != nil {
 			http.Error(w, "File not found", http.StatusNotFound)
 			return
@@ -482,21 +482,81 @@ func (h *Handlers) HandleReportContent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getFileByID retrieves a file by ID
-func (h *Handlers) getFileByID(fileID int) (*database.File, error) {
-	query := `
-		SELECT id, hash, original_name, file_type, file_size, upload_time, file_path, deleted, deleted_time
-		FROM files WHERE id = ?
-	`
-	row := h.db.QueryRow(query, fileID)
-
-	file := &database.File{}
-	err := row.Scan(&file.ID, &file.Hash, &file.OriginalName, &file.FileType,
-		&file.FileSize, &file.UploadTime, &file.FilePath, &file.Deleted, &file.DeletedTime)
-	if err != nil {
-		return nil, err
+// HandleRedetectFileType re-detects the file type for an existing file
+func (h *Handlers) HandleRedetectFileType(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
-	return file, nil
+
+	// Extract file ID from URL path
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 { // expecting /api/files/{id}/redetect
+		http.Error(w, "Invalid file ID in path", http.StatusBadRequest)
+		return
+	}
+
+	fileIDStr := pathParts[2]
+	fileID, err := strconv.Atoi(fileIDStr)
+	if err != nil {
+		http.Error(w, "Invalid file ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get file info
+	file, err := h.db.GetFileByID(fileID)
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	// Read file content from disk
+	content, err := os.ReadFile(file.FilePath)
+	if err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	// Re-detect file type
+	newFileType := detector.DetectFileType(file.OriginalName, content)
+
+	// Update the file type in database
+	if err := h.db.UpdateFileFileType(fileID, newFileType); err != nil {
+		http.Error(w, "Failed to update file type", http.StatusInternalServerError)
+		return
+	}
+
+	// Get updated file record to return
+	updatedFile, err := h.db.GetFileByID(fileID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve updated file record", http.StatusInternalServerError)
+		return
+	}
+
+	// Automatically create a report for the updated file type if we know how to handle it
+	if h.shouldAutoGenerateReport(newFileType) {
+		report := &database.Report{
+			FileID:      updatedFile.ID,
+			ReportType:  newFileType,
+			Status:      "pending",
+			CreatedTime: time.Now(),
+			DDDVersion:  DDDVersion,
+		}
+
+		if err := h.db.InsertReport(report); err != nil {
+			// Log error but don't fail the re-detect
+			log.Printf("Failed to create automatic report for file %d after re-detection: %v", updatedFile.ID, err)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"file":    updatedFile,
+		"message": "File type re-detected successfully",
+	}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // serveReportPage serves the report viewer HTML page
