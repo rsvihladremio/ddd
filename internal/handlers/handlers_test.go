@@ -1171,4 +1171,3 @@ func TestHandlers_HandleRedetectFileType(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, reports, 2, "a new report should have been created on re-detection")
 }
-
