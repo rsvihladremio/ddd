@@ -82,6 +82,7 @@ func main() {
 	mux.HandleFunc("/api/upload", h.HandleUpload)
 	mux.HandleFunc("/api/files", h.HandleFiles)
 	mux.HandleFunc("/api/files/", h.HandleFileOperations)
+	mux.HandleFunc("/api/files/{id}/redetect", h.HandleRedetectFileType)
 	mux.HandleFunc("/api/reports/", h.HandleReports)
 	mux.HandleFunc("/api/reports/content/", h.HandleReportContent)
 

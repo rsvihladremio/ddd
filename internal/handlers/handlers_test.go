@@ -1111,3 +1111,64 @@ func TestIntegration_DuplicateFileHandling(t *testing.T) {
 
 	_ = db // Suppress unused variable warning
 }
+
+func TestHandlers_HandleRedetectFileType(t *testing.T) {
+	handler, db := setupTestHandler(t)
+
+	// 1. Upload a file. We'll use ttop content but with a generic name.
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "test.data")
+	require.NoError(t, err)
+	_, err = part.Write(testutil.SampleFiles["ttop"].Content)
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest("POST", "/api/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+	handler.HandleUpload(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var uploadResponse map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &uploadResponse)
+	require.NoError(t, err)
+	fileData := uploadResponse["file"].(map[string]interface{})
+	fileID := int(fileData["id"].(float64))
+
+	// Verify it was detected as ttop initially
+	assert.Equal(t, "ttop", fileData["file_type"])
+
+	// 2. Manually change the file type in the DB to 'unknown' to simulate a past misdetection.
+	// Use the new UpdateFileFileType directly for testing purposes
+	err = db.UpdateFileFileType(fileID, "unknown")
+	require.NoError(t, err)
+
+	// 3. Call the redetect endpoint.
+	redetectURL := fmt.Sprintf("/api/files/%d/redetect", fileID)
+	req = httptest.NewRequest("POST", redetectURL, nil)
+	w = httptest.NewRecorder()
+	handler.HandleRedetectFileType(w, req)
+
+	// 4. Assert the response is successful and the file type is corrected.
+	require.Equal(t, http.StatusOK, w.Code)
+	var redetectResponse map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &redetectResponse)
+	require.NoError(t, err)
+	assert.True(t, redetectResponse["success"].(bool))
+
+	updatedFileData := redetectResponse["file"].(map[string]interface{})
+	assert.Equal(t, "ttop", updatedFileData["file_type"])
+
+	// 5. Verify directly from the DB that the file type was updated using GetFileByID.
+	updatedFileFromDB, err := db.GetFileByID(fileID)
+	require.NoError(t, err)
+	assert.Equal(t, "ttop", updatedFileFromDB.FileType)
+
+	// 6. Verify that a new report was queued.
+	// The initial upload creates one report. Re-detection should create a second one.
+	reports, err := db.GetReportsByFileID(fileID)
+	require.NoError(t, err)
+	assert.Len(t, reports, 2, "a new report should have been created on re-detection")
+}
+

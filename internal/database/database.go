@@ -391,6 +391,30 @@ func (db *DB) FailReport(reportID int, errorMessage string) error {
 	return db.UpdateReport(reportID, "failed", "", errorMessage)
 }
 
+// UpdateFileFileType updates the file type for a given file ID
+func (db *DB) UpdateFileFileType(fileID int, fileType string) error {
+	query := `UPDATE files SET file_type = ?, upload_time = ? WHERE id = ?`
+	_, err := db.Exec(query, fileType, time.Now(), fileID)
+	return err
+}
+
+// GetFileByID retrieves a file by ID
+func (db *DB) GetFileByID(fileID int) (*File, error) {
+	query := `
+		SELECT id, hash, original_name, file_type, file_size, upload_time, file_path, deleted, deleted_time
+		FROM files WHERE id = ?
+	`
+	row := db.QueryRow(query, fileID)
+
+	file := &File{}
+	err := row.Scan(&file.ID, &file.Hash, &file.OriginalName, &file.FileType,
+		&file.FileSize, &file.UploadTime, &file.FilePath, &file.Deleted, &file.DeletedTime)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
 // UpdateWorkerStatus updates or inserts worker status
 func (db *DB) UpdateWorkerStatus(workerType, status, message string) error {
 	query := `
