@@ -192,7 +192,9 @@ class DDDApp {
             }
         } catch (error) {
             console.error('Error loading files:', error);
-            filesList.innerHTML = '<tr><td colspan="6">Error loading files</td></tr>';
+            filesList.innerHTML = '';
+            emptyDiv.style.display = 'block';
+            emptyDiv.textContent = 'No files found. Upload a file to generate reports.';
         } finally {
             loadingDiv.style.display = 'none';
         }
@@ -205,6 +207,7 @@ class DDDApp {
         if (files.length === 0) {
             filesList.innerHTML = '';
             emptyDiv.style.display = 'block';
+            emptyDiv.textContent = 'No files found. Upload a file to generate reports.';
             return;
         }
 
