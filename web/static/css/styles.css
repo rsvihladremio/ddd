@@ -1,0 +1,908 @@
+/*
+Copyright 2025 Ryan SVIHLA Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: gray;
+    color: gray;
+}
+
+.mdl-layout__header {
+    background: white;
+    border: 1px solid green;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.mdl-layout__header .mdl-layout-title {
+    color: black;
+    font-weight: 500;
+}
+
+.mdl-layout__header .mdl-navigation__link {
+    color: black;
+    font-weight: 400;
+}
+
+.mdl-layout__header .mdl-navigation__link:hover {
+    color: green;
+    background-color: rgba(6, 182, 212, 0.1);
+}
+
+
+
+.mdl-button--raised.mdl-button--colored {
+    background-color: green;
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.mdl-button--raised.mdl-button--colored:hover {
+    background-color: #008180;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.mdl-button--accent.mdl-button--accent.mdl-button--raised {
+    background-color: green;
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: none;
+}
+
+.mdl-button--accent.mdl-button--accent.mdl-button--raised:hover {
+    background-color: #008180;
+}
+
+/* Icon buttons */
+.mdl-button--icon {
+    color: gray;
+    transition: color 0.2s ease;
+}
+
+.mdl-button--icon:hover {
+    color: #008180;
+    background-color: rgba(0, 129, 128, 0.1);
+}
+
+/* Upload section within Files card */
+.upload-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.upload-area {
+    border: 2px dashed gray;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: white;
+}
+
+.upload-area:hover {
+    border-color: green;
+    background-color: rgba(6, 182, 212, 0.05);
+}
+
+.upload-area.dragover {
+    border-color: green;
+    background-color: rgba(6, 182, 212, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    margin-bottom: 16px;
+}
+
+.upload-icon .material-icons {
+    font-size: 48px;
+    color: #666;
+}
+
+.upload-text {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.upload-subtext {
+    font-size: 14px;
+    color: #666;
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.file-actions button {
+    min-width: auto;
+    padding: 4px 8px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background-color: #fef3c7;
+    color: yellow;
+}
+
+.status-running {
+    background-color: rgba(6, 182, 212, 0.1);
+    color: green;
+}
+
+.status-completed {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: green;
+}
+
+.status-failed {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: red;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.report-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.report-chart {
+    width: 100%;
+    height: 300px;
+    margin: 16px 0;
+}
+
+.file-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: white;
+}
+
+.file-type-jfr {
+    background-color: yellow;
+}
+
+.file-type-ttop {
+    background-color: green;
+}
+
+.file-type-iostat {
+    background-color: green;
+}
+
+.file-type-archive {
+    background-color: gray;
+}
+
+.file-type-unknown {
+    background-color: gray;
+}
+
+.file-size {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: #666;
+}
+
+.upload-progress {
+    margin-top: 16px;
+    width: 100%;
+}
+
+.upload-status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.upload-status.success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: green;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.upload-status.error {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: red;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.search-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid gray;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.search-section .mdl-textfield {
+    flex: 1;
+}
+
+.mdl-data-table {
+    border: none;
+    width: 100%;
+    min-width: 800px;
+}
+
+.mdl-data-table th {
+    color: gray;
+    font-weight: 500;
+}
+
+.mdl-data-table td {
+    border-top: 1px solid gray;
+}
+
+/* Make the files card wider */
+.mdl-card {
+    width: 100%;
+    max-width: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    border: 1px solid gray;
+}
+
+.mdl-card__title {
+    background: green;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+}
+
+.mdl-card__title-text {
+    color: white;
+}
+
+
+/* Make specific columns wider */
+.mdl-data-table th:first-child,
+.mdl-data-table td:first-child {
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.mdl-data-table th:nth-child(2),
+.mdl-data-table td:nth-child(2) {
+    min-width: 80px;
+    max-width: 100px;
+}
+
+.mdl-data-table th:nth-child(3),
+.mdl-data-table td:nth-child(3) {
+    min-width: 80px;
+}
+
+.mdl-data-table th:nth-child(4),
+.mdl-data-table td:nth-child(4) {
+    min-width: 80px;
+}
+
+.mdl-data-table th:nth-child(5),
+.mdl-data-table td:nth-child(5) {
+    min-width: 150px;
+}
+
+.mdl-data-table th:nth-child(6),
+.mdl-data-table td:nth-child(6) {
+    min-width: 150px;
+}
+
+.mdl-cell {
+    margin-bottom: 16px;
+}
+
+/* Ensure equal padding inside the card */
+.mdl-card__supporting-text {
+    margin: auto;
+}
+
+
+
+/* Make the page content wider with equal margins */
+.page-content {
+    padding: 16px;
+}
+
+/* Center the grid content with equal margins */
+.mdl-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    justify-content: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .upload-area {
+        padding: 20px;
+    }
+    
+    .upload-icon .material-icons {
+        font-size: 36px;
+    }
+    
+    .upload-text {
+        font-size: 16px;
+    }
+    
+    .file-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .mdl-data-table {
+        font-size: 12px;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Dialog styles */
+.mdl-dialog {
+    width: 90%;
+    max-width: 1200px;
+    min-height: 600px;
+}
+
+.mdl-dialog__content {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Chart container */
+.chart-container {
+    margin: 16px 0;
+    padding: 16px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Report dialog styles */
+.reports-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+}
+
+.reports-list {
+    flex: 0 0 auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.reports-header h4 {
+    margin: 0;
+}
+
+.no-reports-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.no-reports-container p {
+    margin-bottom: 20px;
+    color: #666;
+}
+
+/* Polling indicator */
+.polling-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: teal;
+    border-radius: 50%;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+.report-viewer {
+    flex: 1;
+    min-height: 200px;
+    border: 1px solid gray;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.report-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid gray;
+    transition: background-color 0.2s ease;
+}
+
+.report-item:hover {
+    background-color: gray;
+}
+
+.report-item:last-child {
+    border-bottom: none;
+}
+
+.report-item.selected {
+    background-color: rgba(6, 182, 212, 0.1);
+    border-left: 4px solid green;
+}
+
+.report-info {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.report-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.report-viewer-header {
+    padding: 16px;
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 4px 4px 0 0;
+    font-weight: 500;
+}
+
+.report-viewer-content {
+    padding: 16px;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 0 0 4px 4px;
+}
+
+.report-viewer-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    font-style: italic;
+}
+
+.report-content {
+    max-height: none;
+    overflow-y: visible;
+}
+
+.report-raw-data {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.error-message {
+    color: red;
+    background-color: rgba(239, 68, 68, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid red;
+}
+
+/* Footer styling */
+.mdl-mini-footer {
+    background-color: #43b8c9;
+    color: white;
+}
+
+.mdl-mini-footer a {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.mdl-mini-footer a:hover {
+    color: white;
+}
+
+/* Deleted file styles */
+.deleted-file {
+    opacity: 0.6;
+    background-color: #f5f5f5;
+}
+
+.deleted-indicator {
+    color: #757575;
+    font-style: italic;
+    font-size: 0.9em;
+    margin-left: 8px;
+}
+
+.deleted-file-message {
+    background-color: #fff3e0;
+    border: 1px solid #ffb74d;
+    border-radius: 4px;
+    padding: 16px;
+    margin: 16px 0;
+    color: #e65100;
+}
+
+.deleted-file-message p {
+    margin: 8px 0;
+}
+
+.deleted-file-message strong {
+    color: #bf360c;
+}
+
+/* File hash styles */
+.file-hash {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: green;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.file-hash:hover {
+    background-color: rgba(6, 182, 212, 0.1);
+    border-color: green;
+    color: #008180;
+}
+
+/* Hash verification dialog */
+.hash-verification-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.hash-verification-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.hash-verification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid gray;
+    background: #008180;
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.hash-verification-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.close-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.hash-verification-body {
+    padding: 24px;
+}
+
+.hash-verification-body p {
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+}
+
+.hash-verification-body code {
+    background-color: gray;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    color: gray;
+    word-break: break-all;
+}
+
+.copy-command-btn {
+    margin-top: 16px;
+}
+
+/* Toast notification */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: gray;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    font-size: 14px;
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Search indicators */
+.search-status {
+    padding: 8px 16px;
+    margin: 8px 0;
+    background-color: blue;
+    color: white;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-status::before {
+    content: "search";
+    font-family: 'Material Icons';
+    font-size: 16px;
+}
+
+.search-status.no-results {
+    background-color: gray;
+}
+
+.search-status.no-results::before {
+    content: "search_off";
+}
+
+.search-section {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.search-section .mdl-textfield {
+    flex: 1;
+    margin-right: 0;
+}
+
+#clear-search-button {
+    color: gray;
+}
+
+#clear-search-button:hover {
+    color: red;
+    background-color: grey;
+}
+
+/* Search term highlighting */
+.search-highlight {
+    background-color: #ffeb3b;
+    color: #333;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-weight: 500;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 0;
+    padding: 16px;
+}
+
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-number {
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid gray;
+    background-color: white;
+    color: gray;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.page-number:hover {
+    background-color: gray;
+    border-color: green;
+    color: green;
+}
+
+.page-number.current {
+    background-color: green;
+    border-color: green;
+    color: white;
+    cursor: default;
+}
+
+.page-number.current:hover {
+    background-color: green;
+    border-color: green; 
+    color: white;
+}
+
+.page-ellipsis {
+    padding: 0 8px;
+    color: gray; 
+    font-size: 14px;
+}
+
+#prev-page:disabled,
+#next-page:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#prev-page:disabled:hover,
+#next-page:disabled:hover {
+    background-color: transparent;
+}
+
+/* Settings controls styling */
+.settings-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 16px;
+}
+
+.setting-label,
+.editable-setting,
+.setting-unit {
+    color: black;
+    font-weight: 500;
+}
+
+.setting-label {
+    font-size: 14px;
+}
+
+.editable-setting {
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.editable-setting:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.setting-unit {
+    font-size: 14px;
+    margin-right: 12px;
+}
+
+.current-usage-display {
+    color: black;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
